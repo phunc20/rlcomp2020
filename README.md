@@ -7,8 +7,15 @@ record our team's effort in an RL competition held by Fsoft, a company in vietna
 - [https://rlcomp.codelearn.io/index.html](https://rlcomp.codelearn.io/index.html)
 
 
-## How to Run <code>Miner-Testing-CodeSample/build/TestingAgent.py</code>?
-01. In one terminal, run <code><b>python Miner-Testing-Server/DUMMY_SERVER.py 1111</b></code>
+## How to Run <code>TestingAgent.py</code> in <code>Miner-Testing-CodeSample/build/</code>?
+01. In one terminal, run 
+<pre>
+# Either not needing to change directory into Miner-Testing-Server/
+python Miner-Testing-Server/DUMMY_SERVER.py 1111
+# Or changing dir into Miner-Testing-Server/ are both fine.
+cd Miner-Testing-Server/
+python DUMMY_SERVER.py 1111
+</pre>
 02. In <b>another</b> terminal, run
 <pre>
 cd Miner-Testing-CodeSample/build/
