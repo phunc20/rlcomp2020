@@ -848,7 +848,7 @@ class DQN:
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         K.set_session(sess)
-        self.sess.run( tf.global_variables_initializer()) 
+        self.sess.run(tf.global_variables_initializer()) 
       
     def create_model(self):
       model = Sequential()
@@ -895,28 +895,28 @@ class DQN:
           targets[i,action] = reward + Q_future * self.gamma
       #Training
       loss = self.model.train_on_batch(inputs, targets)  
-    
+
     def target_train(self): 
       weights = self.model.get_weights()
       target_weights = self.target_model.get_weights()
       for i in range(0, len(target_weights)):
         target_weights[i] = weights[i] * self.tau + target_weights[i] * (1 - self.tau)
-      
+
       self.target_model.set_weights(target_weights) 
-    
-    
+
+
     def update_epsilon(self):
-      self.epsilon =  self.epsilon*self.epsilon_decay
-      self.epsilon =  max(self.epsilon_min, self.epsilon)
-    
-    
+        self.epsilon =  self.epsilon*self.epsilon_decay
+        self.epsilon =  max(self.epsilon_min, self.epsilon)
+
+
     def save_model(self, model_name):
         # serialize model to JSON
         model_json = self.model.to_json()
         with open(model_name + ".json", "w") as json_file:
             json_file.write(model_json)
             # serialize weights to HDF5
-            self.model.save_weights( model_name + ".h5")
+            self.model.save_weights(model_name + ".h5")
             print("Saved model to disk")
 
 
@@ -1066,13 +1066,13 @@ BATCH_SIZE = 32   #The number of experiences for each replay
 MEMORY_SIZE = 100_000 #The size of the batch for storing experiences
 SAVE_NETWORK = 100  # After this number of episodes, the DQN model is saved for testing later. 
 INITIAL_REPLAY_SIZE = 1000 #The number of experiences are stored in the memory batch before starting replaying
-INPUTNUM = 198 #The number of input values for the DQN model
-ACTIONNUM = 6  #The number of actions output from the DQN model
+INPUT_DIMS = 198 #The number of input values for the DQN model
+N_ACTIONS = 6  #The number of actions output from the DQN model
 MAP_MAX_X = 21 #Width of the Map
 MAP_MAX_Y = 9  #Height of the Map
 
 # Initialize network and memory
-DQNAgent = DQN(INPUTNUM, ACTIONNUM)
+DQNAgent = DQN(INPUT_DIMS, N_ACTIONS)
 memory = Memory(MEMORY_SIZE)
 
 # Initialize environment
@@ -1133,7 +1133,7 @@ for episode_i in range(N_EPISODES):
             DQNAgent.target_train()  # Replace the learning weights for target model with soft replacement
             #Save the DQN model
             now = datetime.datetime.now() #Get the latest datetime          
-            DQNAgent.save_model( "DQNmodel_" + now.strftime("%Y%m%d-%H%M") + "_ep" + str(episode_i+1))   
+            DQNAgent.save_model("DQNmodel_" + now.strftime("%Y%m%d-%H%M") + "_ep" + str(episode_i+1))   
         
         #Print the training information after the episode
         print('Episode %d ends. Number of steps is: %d. Accumlated Reward = %.2f. Epsilon = %.2f .Termination code: %d' % (episode_i+1, step+1, total_reward, DQNAgent.epsilon, terminate))
@@ -1150,54 +1150,3 @@ for episode_i in range(N_EPISODES):
 ##########################
 # last cell
 ##########################
-
-
-
-
-for episode_i in range(10):
-    try:
-        mapID = np.random.randint(0, 5)
-        posID_x = np.random.randint(MAP_MAX_X) 
-        posID_y = np.random.randint(MAP_MAX_Y)
-
-        request = ("map" + str(mapID) + "," + str(posID_x) + "," + str(posID_y) + ",50,100") 
-        minerEnv.send_map_info(request)
-
-        minerEnv.reset()
-        s = minerEnv.get_state()
-        total_reward = 0
-        terminate = False # This indicates whether the episode has ended
-        maxStep = minerEnv.state.mapInfo.maxStep # Get the maximum number of steps for each episode in training
-        print(f"maxStep = {maxStep}")
-        # Start an episde for training
-        for step in range(0, maxStep):
-            action = np.random.randint(0, 5)
-            minerEnv.step(str(action))  # Performing the action in order to obtain the new state
-            s_next = minerEnv.get_state()  # Getting a new state
-            reward = minerEnv.get_reward()  # Getting a reward
-            terminate = minerEnv.check_terminate()  # Checking the end status of the episode
-             
-            # Add this transition to the memory batch
-            memory.push(s, action, reward, terminate, s_next)
-
-            # Sample batch memory to train network
-            if (memory.length > INITIAL_REPLAY_SIZE):
-                #If there are INITIAL_REPLAY_SIZE experiences in the memory batch
-                #then start replaying
-                batch = memory.sample(BATCH_SIZE) #Get a BATCH_SIZE experiences for replaying
-                DQNAgent.replay(batch, BATCH_SIZE)#Do relaying
-                train = True #Indicate the training starts
-            total_reward = total_reward + reward #Plus the reward to the total rewad of the episode
-            s = s_next #Assign the next state for the next step.
-            
-            if terminate == True:
-                break
-            
-        #print('Episode %d ends. Number of steps is: %d. Accumlated Reward = %.2f. Epsilon = %.2f . Termination code: %d' % (episode_i+1, step+1, total_reward, DQNAgent.epsilon, terminate))
-        print('Episode %d. Number of steps %d. Reward = %.2f. Termination code: %d' % (episode_i+1, step+1, total_reward, terminate))
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()                
-        #print("Finished.")
-        break
