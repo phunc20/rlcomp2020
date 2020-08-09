@@ -1,1 +1,0 @@
-        print('\n(episode {: 5d}) step {: 3d}. gold {: 4d}. reward {:.2f}. epsilon {:.2f}. reason {}'.format(episode_i+1, step+1, minerEnv.state.score, total_reward, DQNAgent.epsilon, game_over_reason[minerEnv.state.status]), end="\n\n")
