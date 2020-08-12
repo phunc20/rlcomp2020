@@ -38,6 +38,19 @@ def find_closest_gold(s):
     #print(f"closest_gold_index = {closest_gold_index}")
     return pos_golds[closest_gold_index]
 
+def find_worthiest_gold(s):
+    numerical_image = s[:n_px].reshape((height, width))
+    pos_agent = s[n_px:n_px+2]
+    farest_possible = width + height - 2
+    big_gold = 1000
+    coeff = big_gold*farest_possible/(farest_possible-1)
+    pos_golds = find_pos_golds(s)
+    worth_golds = np.array([
+        numerical_image[pos[1], pos[0]] + coeff/max(1, np.linalg.norm(pos-pos_agent, ord=1)) for pos in pos_golds
+    ])
+    index_worthiest = np.argmax(worth_golds)
+    return pos_golds[index_worthiest]
+
 def need_rest(next_terrain, energy):
     if next_terrain == "gold":
         if energy <= punishments[next_terrain]:
