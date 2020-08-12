@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from constants import width, height, terrain_ids
+from constants import width, height, terrain_ids, n_px
 
 # in RGB format
 #gold = [99.3, 68.8, 1.0]
@@ -22,8 +22,6 @@ pink = np.array([253, 179, 176])
 gold = np.array([242, 215, 35])
 white = np.ones((3,), dtype=np.uint8)*255
 black = np.zeros((3,), dtype=np.uint8)
-
-n_px = width*height
 
 def imshow(image, figsize=(7,7)):
     plt.figure(figsize=figsize)
@@ -78,3 +76,20 @@ def prettier_render(s):
     #print(f"agent_xy_3x = {agent_xy_3x}")
     primitive_3x[agent_xy_3x[1], agent_xy_3x[0]] = white
     return primitive_3x
+
+
+def gold_total(map_):
+    return map_[map_ > 0].sum()
+
+#def pictorial_state(obs):
+#    pictorial = np.zeros((constants.height, constants.width, 2), dtype=np.float32)
+#    # dtype=np.float32 because pictorial will later be carried into tensorflow CNN
+#    pictorial[..., 0] = obs[:constants.n_px].reshape((constants.height, constants.width))
+#    # position of agent: we put the energy value at the coordinate where stands the agent, the whole in the last channel.
+#    pictorial[obs[constants.n_px], obs[constants.n_px+1], -1] = obs[constants.n_px+2]
+#    # position of bots: we put -1 on the coord of the bots
+#    for i in range(1, 3+1):
+#        pictorial[obs[constants.n_px+(2*i+1)], obs[constants.n_px+(2*i+2)], -1] = -1
+#    return pictorial
+
+

@@ -3,12 +3,31 @@ from constants import *
 from viz_utils import *
 
 
-def find_closest_gold(s):
+def find_largest_gold(s):
+    numerical_image = s[:n_px].reshape((height, width))
+    #print(f"\nnumerical_image =\n{numerical_image}")
+    #row_col_largest = np.argmax(numerical_image)
+    row_col_largest = np.unravel_index(np.argmax(numerical_image, axis=None), numerical_image.shape)
+    #print(f"row_col_largest =\n{row_col_largest}")
+    pos_largest = np.array(row_col_largest[::-1])
+    return pos_largest
+
+def find_pos_golds(s):
     numerical_image = s[:n_px].reshape((height, width))
     #print(f"\nnumerical_image =\n{numerical_image}")
     row_col_golds = np.argwhere(numerical_image>0)
     pos_golds = np.zeros_like(row_col_golds)
     pos_golds[:,0], pos_golds[:,1] = row_col_golds[:,1], row_col_golds[:,0]
+    return pos_golds
+
+
+def find_closest_gold(s):
+    #numerical_image = s[:n_px].reshape((height, width))
+    ##print(f"\nnumerical_image =\n{numerical_image}")
+    #row_col_golds = np.argwhere(numerical_image>0)
+    #pos_golds = np.zeros_like(row_col_golds)
+    #pos_golds[:,0], pos_golds[:,1] = row_col_golds[:,1], row_col_golds[:,0]
+    pos_golds = find_pos_golds(s)
     #print(f"row_col_golds =\n{row_col_golds}")
     #print(f"pos_golds =\n{pos_golds}")
     pos_agent = s[n_px:n_px+2]
@@ -79,10 +98,11 @@ def less_severe_index(terrains):
         return index
     return 0
 
-def greedy_policy(s):
+def greedy_policy(s, how_gold=find_closest_gold):
     #imshow(prettier_render(s))
     numerical_image = s[:n_px].reshape((height, width))
-    pos_closest_gold = find_closest_gold(s)
+    #pos_closest_gold = find_closest_gold(s)
+    pos_closest_gold = how_gold(s)
     #print(f"pos_closest_gold = {pos_closest_gold}")
     pos_agent = s[n_px:n_px+2]
     energy_agent = s[n_px+2]
