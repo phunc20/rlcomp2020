@@ -1,0 +1,2 @@
+- every player has its own state
+    - Its <code>state.id</code> is exactly the player's id
