@@ -4,6 +4,8 @@ width = 21
 height = 9
 n_px = width*height
 
+max_energy = 50
+
 terrain_ids = {
     "land": 0,
     "forest": 1,
@@ -95,4 +97,8 @@ maps = {
       [-1,500,-1,-3,-2,0,-1,450,-1,0,0,-1,500,-1,-2,-1,-2,0,50,0,0],
     ],
 }
+
+
+maps_ndarray = np.array([maps[i] for i in range(1,5+1)])
+
 
