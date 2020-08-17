@@ -13,6 +13,13 @@ terrain_ids = {
 
 terrain_names = {value: key for key, value in terrain_ids.items()}
 
+up = 2
+down = 3
+left = 0
+right = 1
+rest = 4
+dig = 5
+
 available_actions = {
     "up": '2',
     "down": '3',
