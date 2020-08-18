@@ -26,3 +26,5 @@ python TestingAgent.py
 01. BTC cho mình hỏi maximum số vàng của một ô có giới hạn ntn ạ
     - Map được thiết kế để đảm bảo 4 đội sẽ run trong khoảng 100 step thì vừa hết vàng hoặc gần hết vàng.
 Bạn dựa vào đó để tính toán giới hạn vàng nhé. Bạn có thể tham khảo 5 map đấu với bot.
+02. On <b><code>gold</code></b> with <code><b>energy=2</b></code>, if the player choose to <code><b>dig</b></code>, then
+    - The player will <b>die</b> and this <b>w/o</b> obtaining any gold.
