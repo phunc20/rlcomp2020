@@ -68,7 +68,7 @@ class MinerEnv:
                                 
         #Create the state
         DQNState = view.flatten().tolist()
-        self.pos_x_gold_first = self.state.x
+        self.pos_x_gold_first =self.state.x
         self.pos_y_gold_first = self.state.y
         if len(self.state.mapInfo.golds) > 0:
             self.pos_x_gold_first = self.state.mapInfo.golds[0]["posx"]
@@ -84,26 +84,27 @@ class MinerEnv:
     def get_reward(self):
         # Calculate reward
         reward = 0
-        goldamount = self.state.mapInfo.gold_amount(self.state.x, self.state.y)
-        if goldamount > 0:
-            # i.e. when we (agent) are standing on gold, or when we finally arrive at gold
-            reward += 10
-            # remove the gold
-            for g in self.socket.stepState.golds:
-                    if g.posx == self.state.x and g.posy == self.state.y:
-                        self.socket.stepState.golds.remove(g)
-        #gold_digged = self.state.score - self.score_pre
-        #self.score_pre = self.state.score
-        #if gold_digged > 0:
-        #    #reward += 10
-        #    reward += 0.1*(constants.n_allowed_steps - self.state.stepCount) + 5
+        #goldamount = self.state.mapInfo.gold_amount(self.state.x, self.state.y)
+        #if goldamount > 0:
+        #    # i.e. when we (agent) are standing on gold, or when we finally arrive at gold
+        #    reward += 3
+        #    ##remove the gold
+        #    #for g in self.socket.stepState.golds:
+        #    #        if g.posx == self.state.x and g.posy == self.state.y:
+        #    #            self.socket.stepState.golds.remove(g)
+        gold_digged = self.state.score - self.score_pre
+        self.score_pre = self.state.score
+        if gold_digged > 0:
+            #reward += 10
+            #reward += 0.1*(constants.n_allowed_steps - self.state.stepCount) + 5
+            reward += 0.4*(constants.n_allowed_steps - self.state.stepCount) + 10
             
         #If the DQN agent crashs into obstacles (Tree, Trap, Swamp), then it should be punished by a negative reward
         if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
-            reward -= 1
+            reward -= 0.4
         if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
-            reward -= 0.5
-            #pass
+            #reward -= 0.2
+            pass
         if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == SwampID:  # Swamp
             reward -= 40
         # previous distance and current distance, i.e. distance to 1st gold, previously and currently
@@ -113,19 +114,17 @@ class MinerEnv:
         dis_curr = np.linalg.norm([self.state.x - self.pos_x_gold_first, self.state.y - self.pos_y_gold_first])
         #if (dis_curr - dis_pre) <= 0: # Reducing the distance , reward ++
         if dis_curr < dis_pre: # Reducing the distance , reward ++
-                reward += 1
+                reward += 0.2
         else:
-                reward -= 1
+                reward -= 0.2
         
         # If out of the map, then the DQN agent should be punished by a large nagative reward
         if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
             reward -= 40
         if self.state.status == State.STATUS_PLAYING:
-            reward += 0.5
-
-        # Meaningless rest: punish
-        if self.state.lastAction == constants.rest and self.state.energy > 42:
-            reward -= 3
+            reward += 0.1
+        if self.state.lastAction == constants.rest and self.state.energy < 12+9:
+            reward += 10
         return reward
 
     def check_terminate(self):
