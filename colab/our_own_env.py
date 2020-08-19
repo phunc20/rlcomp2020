@@ -18,10 +18,28 @@ from tf_agents.trajectories import time_step as ts
 #tf.compat.v1.enable_v2_behavior()
 
 import constants
+from my_bot1 import Bot1
+from bot2 import Bot2
+from bot3 import Bot3
+
+
+class Map():
+    def __init__(self, id_):
+        #self.channel0 = constants.maps[id_]
+        self.channel0 = np.array(constants.maps[id_])
+        self.channel1 = np.zeros_like(self.channel0)
+        # channel1 is used to keep track of #(times) players step into "trap" and "swamp"
+        self.ego = np.stack((self.channel0, self.channel1), axis=-1)
 
 
 class GoldMinerEnv(py_environment.PyEnvironment):
-    def __init__(self):
+    def __init__(self, map_id):
+        """
+        args
+            map_id, int
+                btw 1..5 (inclusive)
+        """
+        self._map = Map(map_id)
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(), dtype=np.int32, minimum=0, maximum=5, name="action")
         # TODO: Find a good observation for this environment
