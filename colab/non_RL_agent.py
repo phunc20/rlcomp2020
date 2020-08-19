@@ -161,7 +161,7 @@ def greedy_policy(s, how_gold=find_closest_gold):
             pos_terrain = pos_agent + np.array([0,1])
         elif displacement == "up":
             pos_terrain = pos_agent + np.array([0,-1])
-        print(f"pos_terrain = {pos_terrain}")
+        #print(f"pos_terrain = {pos_terrain}")
         id_terrain = -numerical_image[pos_terrain[1], pos_terrain[0]]
         name_terrain = terrain_names[id_terrain] if id_terrain >= 0 else "gold"
         upcoming_terrains.append(name_terrain)
@@ -171,10 +171,10 @@ def greedy_policy(s, how_gold=find_closest_gold):
     else:
         index = 0
     next_terrain = upcoming_terrains[index]
-    print("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
+    #print("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
     if need_rest(next_terrain, energy_agent):
         return available_actions["rest"]
     else:
-        print(f"(Final) needed_displacements = {needed_displacements}, index = {index}")
+        #print(f"(Final) needed_displacements = {needed_displacements}, index = {index}")
         return available_actions[needed_displacements[index]]
 

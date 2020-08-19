@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 #from viz_utils import *
-import constants
-import non_RL_agent
 
 import sys
 import numpy as np
@@ -29,6 +27,10 @@ import tensorflow.keras as keras
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1.keras import backend as K
 tf.disable_v2_behavior()
+
+import constants
+import non_RL_agent
+import non_RL_agent3
 
 
 #Classes in GAME_SOCKET_DUMMY.py
@@ -472,11 +474,10 @@ class Bot1:
     def next_action(self):
         s = self.get_state()
         #return int(greedy_policy(s))
-        return non_RL_agent.greedy_policy(s) 
+        return int(non_RL_agent.greedy_policy(s))
 
     def get_score(self):
         return [player["score"] for player in minerEnv.socket.bots[1].state.players if player["playerId"] == self.info.playerId][0]
-
 
     def new_game(self, data):
         try:
@@ -495,10 +496,6 @@ class Bot1:
             traceback.print_exc()
 
 
-# In[495]:
-
-
-#Bots :bot2
 class Bot2:
     ACTION_GO_LEFT = 0
     ACTION_GO_RIGHT = 1
@@ -510,18 +507,56 @@ class Bot2:
     def __init__(self, id):
         self.state = State()
         self.info = PlayerInfo(id)
+        
+    def get_state(self):
+        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+        for x in range(self.state.mapInfo.max_x + 1):
+            for y in range(self.state.mapInfo.max_y + 1):
+                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
+                    view[y, x] = -TreeID
+                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
+                    view[y, x] = -TrapID
+                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
+                    view[y, x] = -SwampID
+                if self.state.mapInfo.gold_amount(x, y) > 0:
+                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
+
+        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
+        
+        #DQNState.append(self.state.x)
+        #DQNState.append(self.state.y)
+        #DQNState.append(self.state.energy)
+        DQNState.append(self.info.posx)
+        DQNState.append(self.info.posy)
+        DQNState.append(self.info.energy)
+        for player in self.state.players:
+            # self.info.playerId is the id of the current bot
+            if player["playerId"] != self.info.playerId:
+                DQNState.append(player["posx"])
+                DQNState.append(player["posy"])
+                
+        DQNState = np.array(DQNState)
+
+        return DQNState
+
+
+
 
     def next_action(self):
-        if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
-            if self.info.energy >= 6:
-                return self.ACTION_CRAFT
-            else:
-                return self.ACTION_FREE
-        if self.info.energy < 5:
-            return self.ACTION_FREE
-        else:
-            action = np.random.randint(0, 4)            
-            return action
+        s = self.get_state()
+        return int(non_RL_agent3.greedy_policy(s))
+ 
+        #if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
+        #    if self.info.energy >= 6:
+        #        return self.ACTION_CRAFT
+        #    else:
+        #        return self.ACTION_FREE
+        #if self.info.energy < 5:
+        #    return self.ACTION_FREE
+        #else:
+        #    action = np.random.randint(0, 4)            
+        #    return action
+
 
     def new_game(self, data):
         try:
@@ -543,10 +578,6 @@ class Bot2:
         return [player["score"] for player in minerEnv.socket.bots[1].state.players if player["playerId"] == self.info.playerId][0]
 
 
-# In[496]:
-
-
-#Bots :bot3
 class Bot3:
     ACTION_GO_LEFT = 0
     ACTION_GO_RIGHT = 1
@@ -598,8 +629,6 @@ class Bot3:
     def get_score(self):
         return [player["score"] for player in minerEnv.socket.bots[1].state.players if player["playerId"] == self.info.playerId][0]
 
-
-# In[497]:
 
 
 #MinerState.py
@@ -967,7 +996,7 @@ for mapID in mapID_gen():
             if terminate == True:
                 break
 
-        print('(mapID {: 5d})'.format(mapID+1))
+        print('(mapID {:d})'.format(mapID+1))
         print('(agent)   gold {: 5d}/{: 4d}   step {: 4d}   die of {}'.format(minerEnv.state.score, constants.gold_total(maps[mapID]), step+1, game_over_reason[minerEnv.state.status]))
         print("(bot1)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[0].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[0].state.stepCount))
         print("(bot2)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[1].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[1].state.stepCount))
