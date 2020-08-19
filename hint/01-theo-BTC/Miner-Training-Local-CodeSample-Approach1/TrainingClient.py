@@ -121,7 +121,8 @@ for episode_i in range(0, N_EPISODE):
         #Print the training information after the episode
         #print('Episode %d ends. Number of steps is: %d. Accumulated Reward = %.2f. Epsilon = %.2f .Termination code: %d' % (
         #episode_i + 1, step + 1, total_reward, DQNAgent.epsilon, terminate))
-        print("(Episode {: 5d})   Gold: {: 4d}  cumulated_reward: {:5.1f}   Steps: {: 3d}   eps: {:5.2f}  ({})".format(episode_i+1, minerEnv.state.score, total_reward, step + 1, DQNAgent.epsilon, game_over_reason[minerEnv.state.status]))
+        #print("(Episode {: 5d})   Gold: {: 4d}  cumulated_reward: {:5.1f}   Steps: {: 3d}   eps: {:5.2f}  ({})".format(episode_i+1, minerEnv.state.score, total_reward, step + 1, DQNAgent.epsilon, game_over_reason[minerEnv.state.status]))
+        print("(Episode {: 5d})   cumulated_reward: {:5.1f}   Steps: {: 3d}   eps: {:5.2f}  ({})".format(episode_i+1, total_reward, step + 1, DQNAgent.epsilon, game_over_reason[minerEnv.state.status]))
         
         #Decreasing the epsilon if the replay starts
         if train == True:
