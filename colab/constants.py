@@ -31,6 +31,8 @@ available_actions = {
     "dig": '5',
 }
 
+code2action = {value: key for key, value in available_actions.items()}
+
 punishments = {
     "land": 1,
     "gold": 4,

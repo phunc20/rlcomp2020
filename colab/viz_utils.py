@@ -79,6 +79,7 @@ def prettier_render(s):
 
 
 def gold_total(map_):
+    #map_ = np.array(map_)
     return map_[map_ > 0].sum()
 
 #def pictorial_state(obs):
