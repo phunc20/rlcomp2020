@@ -45,6 +45,8 @@ MAP_MAX_Y = 9  #Height of the Map
 
 # Initialize a DQN model and a memory batch for storing experiences
 DQNAgent = DQN(INPUTNUM, ACTIONNUM)
+DQNAgent.model.load_weights("TrainedModels/DQNmodel_20200818-1501_ep10000.h5")
+DQNAgent.target_model.load_weights("TrainedModels/DQNmodel_20200818-1501_ep10000.h5")
 memory = Memory(MEMORY_SIZE)
 
 # Initialize environment
@@ -109,7 +111,7 @@ for episode_i in range(0, N_EPISODE):
             #Save the DQN model
             now = datetime.datetime.now() #Get the latest datetime
             DQNAgent.save_model("TrainedModels/",
-                                "DQNmodel_" + now.strftime("%Y%m%d-%H%M") + "_ep" + str(episode_i + 1))
+                                "DQNmodel_" + now.strftime("%Y%m%d-%H%M") + "_ep" + str(N_EPISODE + episode_i + 1))
 
         
         #Print the training information after the episode
