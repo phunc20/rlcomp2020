@@ -31,7 +31,8 @@ tf.disable_v2_behavior()
 import constants
 import non_RL_agent
 import non_RL_agent3
-
+from DQNModel import DQN
+#from MinerEnv import MinerEnv
 
 #Classes in GAME_SOCKET_DUMMY.py
 class ObstacleInfo:
@@ -761,17 +762,20 @@ class State:
 # In[498]:
 
 
-#MinerEnv.py
+##MinerEnv.py
 TreeID = 1
 TrapID = 2
 SwampID = 3
 class MinerEnv:
-    def __init__(self):
+    def __init__(self, host, port):
+        #self.socket = GameSocket(host, port)
         self.socket = GameSocket()
         self.state = State()
         
         self.score_pre = self.state.score#Storing the last score for designing the reward function
-
+        self.pos_x_pre =  self.state.x
+        self.pos_y_pre = self.state.y
+        
     def start(self): #connect to server
         self.socket.connect()
 
@@ -785,6 +789,10 @@ class MinerEnv:
         try:
             message = self.socket.receive() #receive game info from server
             self.state.init_state(message) #init state
+            
+            self.score_pre = self.state.score#Storing the last score for designing the reward function
+            self.pos_x_pre =  self.state.x
+            self.pos_y_pre = self.state.y
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -800,31 +808,32 @@ class MinerEnv:
 
     # Functions are customized by client
     def get_state(self):
-        # Building the map
-        #view = np.zeros([self.state.mapInfo.max_x + 1, self.state.mapInfo.max_y + 1], dtype=int)
-        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
-        for x in range(self.state.mapInfo.max_x + 1):
-            for y in range(self.state.mapInfo.max_y + 1):
-                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
-                    view[y, x] = -TreeID
-                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
-                    view[y, x] = -TrapID
-                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
-                    view[y, x] = -SwampID
-                if self.state.mapInfo.gold_amount(x, y) > 0:
-                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
-
-        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
-        
-        # Add position and energy of agent to the DQNState
-        DQNState.append(self.state.x)
-        DQNState.append(self.state.y)
-        DQNState.append(self.state.energy)
-        #Add position of bots 
-        for player in self.state.players:
-            if player["playerId"] != self.state.id:
-                DQNState.append(player["posx"])
-                DQNState.append(player["posy"])
+        #Local view
+        view =  np.zeros([5,5])
+        for i in range(-2,3):
+            for j in range(-2,3):
+                index_x = self.state.x + i
+                index_y = self.state.y + j
+                if index_x < 0 or index_y < 0 or index_x >= self.state.mapInfo.max_x or index_y >= self.state.mapInfo.max_y:
+                    view[2+i,2+j] = -1
+                else:
+                        if self.state.mapInfo.get_obstacle(index_x, index_y) == TreeID:
+                            view[2+i,2+j] = -1
+                        if self.state.mapInfo.get_obstacle(index_x, index_y) == TrapID:
+                            #view[2+i,2+j] = -1
+                            pass
+                        if self.state.mapInfo.get_obstacle(index_x, index_y) == SwampID:
+                            view[2+i,2+j] = -1
+                                
+        #Create the state
+        DQNState = view.flatten().tolist()
+        self.pos_x_gold_first = self.state.x
+        self.pos_y_gold_first = self.state.y
+        if len(self.state.mapInfo.golds) > 0:
+            self.pos_x_gold_first = self.state.mapInfo.golds[0]["posx"]
+            self.pos_y_gold_first = self.state.mapInfo.golds[0]["posy"]         
+        DQNState.append(self.pos_x_gold_first - self.state.x)
+        DQNState.append(self.pos_y_gold_first - self.state.y)
                 
         #Convert the DQNState from list to array for training
         DQNState = np.array(DQNState)
@@ -834,48 +843,168 @@ class MinerEnv:
     def get_reward(self):
         # Calculate reward
         reward = 0
-        score_action = self.state.score - self.score_pre
-        self.score_pre = self.state.score
-        if score_action > 0:
-            #If the DQN agent crafts golds, then it should obtain a positive reward (equal score_action)
-            #reward += score_action
-            reward += score_action*5
+        goldamount = self.state.mapInfo.gold_amount(self.state.x, self.state.y)
+        if goldamount > 0:
+            # i.e. when we (agent) are standing on gold, or when we finally arrive at gold
+            reward += 10
+            # remove the gold
+            for g in self.socket.stepState.golds:
+                    if g.posx == self.state.x and g.posy == self.state.y:
+                        self.socket.stepState.golds.remove(g)
+        #gold_digged = self.state.score - self.score_pre
+        #self.score_pre = self.state.score
+        #if gold_digged > 0:
+        #    #reward += 10
+        #    reward += 0.1*(constants.n_allowed_steps - self.state.stepCount) + 5
             
-        ##If the DQN agent crashs into obstacels (Tree, Trap, Swamp), then it should be punished by a negative reward
-        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
-        #    reward -= TreeID
-        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
-        #    reward -= TrapID
+        #If the DQN agent crashs into obstacles (Tree, Trap, Swamp), then it should be punished by a negative reward
+        if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
+            reward -= 1
+        if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
+            reward -= 0.5
+            #pass
         if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == SwampID:  # Swamp
-            reward -= SwampID
-            if self.state.lastAction == 4:
-                reward -= 40
-
-        # If out of the map, then the DQN agent should be punished by a larger nagative reward.
-        if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
-            #if self.state.stepCount < 50:
-            #    reward += -5*(50 - self.state.stepCount)
-            reward += -50
-            
-        #Run out of energy, then the DQN agent should be punished by a larger nagative reward.
-        if self.state.status == State.STATUS_ELIMINATED_OUT_OF_ENERGY:
-            if self.state.stepCount < 50:
-                reward += -(50 - self.state.stepCount)
-                if self.state.lastAction != 4:
-                    # 4 is taking a rest
-                    reward += -10
+            reward -= 40
+        # previous distance and current distance, i.e. distance to 1st gold, previously and currently
+        #dis_pre = np.sqrt((self.pos_x_pre- self.pos_x_gold_first)**2 + (self.pos_y_pre-self.pos_y_gold_first)**2)
+        dis_pre = np.linalg.norm([self.pos_x_pre - self.pos_x_gold_first, self.pos_y_pre - self.pos_y_gold_first])
+        #dis_curr = np.sqrt((self.state.x - self.pos_x_gold_first)**2 + (self.state.y - self.pos_y_gold_first)**2)
+        dis_curr = np.linalg.norm([self.state.x - self.pos_x_gold_first, self.state.y - self.pos_y_gold_first])
+        #if (dis_curr - dis_pre) <= 0: # Reducing the distance , reward ++
+        if dis_curr < dis_pre: # Reducing the distance , reward ++
+                reward += 1
+        else:
+                reward -= 1
         
-        # control comes to here \implies our agent is not dead yet
+        # If out of the map, then the DQN agent should be punished by a large nagative reward
+        if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
+            reward -= 40
         if self.state.status == State.STATUS_PLAYING:
-            if self.state.energy >= 45 and self.state.lastAction == 4:
-                reward -= 30
-        # print ("reward",reward)
+            reward += 0.5
+
+        # Meaningless rest: punish
+        if self.state.lastAction == constants.rest and self.state.energy > 42:
+            reward -= 3
         return reward
 
     def check_terminate(self):
         #Checking the status of the game
         #it indicates the game ends or is playing
         return self.state.status != State.STATUS_PLAYING
+#TreeID = 1
+#TrapID = 2
+#SwampID = 3
+#class MinerEnv:
+#    def __init__(self):
+#        self.socket = GameSocket()
+#        self.state = State()
+#        
+#        self.score_pre = self.state.score#Storing the last score for designing the reward function
+#
+#    def start(self): #connect to server
+#        self.socket.connect()
+#
+#    def end(self): #disconnect server
+#        self.socket.close()
+#
+#    def send_map_info(self, request):#tell server which map to run
+#        self.socket.send(request)
+#
+#    def reset(self): #start new game
+#        try:
+#            message = self.socket.receive() #receive game info from server
+#            self.state.init_state(message) #init state
+#        except Exception as e:
+#            import traceback
+#            traceback.print_exc()
+#
+#    def step(self, action): #step process
+#        self.socket.send(action) #send action to server
+#        try:
+#            message = self.socket.receive() #receive new state from server
+#            self.state.update_state(message) #update to local state
+#        except Exception as e:
+#            import traceback
+#            traceback.print_exc()
+#
+#    # Functions are customized by client
+#    def get_state(self):
+#        # Building the map
+#        #view = np.zeros([self.state.mapInfo.max_x + 1, self.state.mapInfo.max_y + 1], dtype=int)
+#        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+#        for x in range(self.state.mapInfo.max_x + 1):
+#            for y in range(self.state.mapInfo.max_y + 1):
+#                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
+#                    view[y, x] = -TreeID
+#                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
+#                    view[y, x] = -TrapID
+#                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
+#                    view[y, x] = -SwampID
+#                if self.state.mapInfo.gold_amount(x, y) > 0:
+#                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
+#
+#        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
+#        
+#        # Add position and energy of agent to the DQNState
+#        DQNState.append(self.state.x)
+#        DQNState.append(self.state.y)
+#        DQNState.append(self.state.energy)
+#        #Add position of bots 
+#        for player in self.state.players:
+#            if player["playerId"] != self.state.id:
+#                DQNState.append(player["posx"])
+#                DQNState.append(player["posy"])
+#                
+#        #Convert the DQNState from list to array for training
+#        DQNState = np.array(DQNState)
+#
+#        return DQNState
+#
+#    def get_reward(self):
+#        # Calculate reward
+#        reward = 0
+#        score_action = self.state.score - self.score_pre
+#        self.score_pre = self.state.score
+#        if score_action > 0:
+#            #If the DQN agent crafts golds, then it should obtain a positive reward (equal score_action)
+#            #reward += score_action
+#            reward += score_action*5
+#            
+#        ##If the DQN agent crashs into obstacels (Tree, Trap, Swamp), then it should be punished by a negative reward
+#        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
+#        #    reward -= TreeID
+#        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
+#        #    reward -= TrapID
+#        if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == SwampID:  # Swamp
+#            reward -= SwampID
+#            if self.state.lastAction == 4:
+#                reward -= 40
+#
+#        # If out of the map, then the DQN agent should be punished by a larger nagative reward.
+#        if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
+#            #if self.state.stepCount < 50:
+#            #    reward += -5*(50 - self.state.stepCount)
+#            reward += -50
+#            
+#        #Run out of energy, then the DQN agent should be punished by a larger nagative reward.
+#        if self.state.status == State.STATUS_ELIMINATED_OUT_OF_ENERGY:
+#            if self.state.stepCount < 50:
+#                reward += -(50 - self.state.stepCount)
+#                if self.state.lastAction != 4:
+#                    # 4 is taking a rest
+#                    reward += -10
+#        
+#        # control comes to here \implies our agent is not dead yet
+#        if self.state.status == State.STATUS_PLAYING:
+#            if self.state.energy >= 45 and self.state.lastAction == 4:
+#                reward -= 30
+#        # print ("reward",reward)
+#        return reward
+#
+#    def check_terminate(self):
+#        #Checking the status of the game
+#        #it indicates the game ends or is playing
+#        return self.state.status != State.STATUS_PLAYING
 
 
 # Maps of 1st round
@@ -962,7 +1091,9 @@ MAP_MAX_X = 21 #Width of the Map
 MAP_MAX_Y = 9  #Height of the Map
 Maps = CreateMaps()
 maps = [np.array(m) for m in Maps]
-minerEnv = MinerEnv()
+HOST = "localhost"
+PORT = 1111
+minerEnv = MinerEnv(HOST, PORT)
 minerEnv.start()
 
 
@@ -973,22 +1104,41 @@ def mapID_gen():
     for i in range(len(shuffled)):
         yield shuffled[i]
 
-final_score = 0
+
+N_INPUT = 27
+N_ACTION = 4
+agent_BTC_hint = DQN(N_INPUT, N_ACTION)
+h5 = "TrainedModels/DQNmodel_20200819-1638_ep20000.h5"
+agent_BTC_hint.model.load_weights(h5)
+#DQNAgent.target_model.load_weights(h5)
+
+
 for mapID in mapID_gen():
     try:
         #mapID = np.random.randint(0, 5)
         posID_x = np.random.randint(MAP_MAX_X) 
         posID_y = np.random.randint(MAP_MAX_Y)
 
-        request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
+        request = "map{},{},{},50,100".format(mapID+1, posID_x, posID_y)
         minerEnv.send_map_info(request)
 
         minerEnv.reset()
         s = minerEnv.get_state()
         terminate = False # This indicates whether the episode has ended
         maxStep = minerEnv.state.mapInfo.maxStep
+
         for step in range(0, maxStep):
-            minerEnv.step(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
+            gold_here = minerEnv.state.mapInfo.gold_amount(minerEnv.state.x, minerEnv.state.y)
+            agent_energy = minerEnv.state.energy
+            if gold_here > 0:
+                if agent_energy <= 5:
+                    minerEnv.step(str(constants.rest))
+                else:
+                    minerEnv.step(str(constants.dig))
+            else:
+                print(f"s.shape = {s.shape}")
+                a_max = np.argmax(agent_BTC_hint.model.predict(s[np.newaxis,...]))      
+                minerEnv.step(str(a_max))
             s_next = minerEnv.get_state()
             terminate = minerEnv.check_terminate()
             s = s_next
@@ -1002,7 +1152,6 @@ for mapID in mapID_gen():
         print("(bot2)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[1].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[1].state.stepCount))
         print("(bot3)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[2].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[2].state.stepCount))
         print()
-        final_score += minerEnv.state.score
 
     except Exception as e:
         import traceback
@@ -1010,4 +1159,3 @@ for mapID in mapID_gen():
         #print("Finished.")
         break
 
-print(f"final_score = {final_score}")

@@ -7,15 +7,14 @@ def str_2_json(str):
 
 class MapInfo:
     def __init__(self):
-        self.max_x = 0 #Width of the map
-        self.max_y = 0 #Height of the map
-        self.golds = [] #List of the golds in the map
+        self.max_x = 0
+        self.max_y = 0
+        self.golds = []
         self.obstacles = []
         self.numberOfPlayers = 0
-        self.maxStep = 0 #The maximum number of step is set for this map
+        self.maxStep = 0
 
     def init_map(self, gameInfo):
-        #Initialize the map at the begining of each episode
         self.max_x = gameInfo["width"] - 1
         self.max_y = gameInfo["height"] - 1
         self.golds = gameInfo["golds"]
@@ -24,7 +23,6 @@ class MapInfo:
         self.numberOfPlayers = gameInfo["numberOfPlayers"]
 
     def update(self, golds, changedObstacles):
-        #Update the map after every step
         self.golds = golds
         for cob in changedObstacles:
             newOb = True
@@ -59,13 +57,13 @@ class MapInfo:
     def is_column_has_gold(self, x):
         return x in [cell["posx"] for cell in self.golds]
 
-    def gold_amount(self, x, y): #Get the amount of golds at cell (x,y)
+    def gold_amount(self, x, y):
         for cell in self.golds:
             if x == cell["posx"] and y == cell["posy"]:
                 return cell["amount"]
-        return 0 
+        return 0
 
-    def get_obstacle(self, x, y):  # Get the kind of the obstacle at cell(x,y)
+    def get_obstacle(self, x, y):  # Getting the kind of the obstacle at cell(x,y)
         for cell in self.obstacles:
             if x == cell["posx"] and y == cell["posy"]:
                 return cell["type"]
@@ -88,7 +86,6 @@ class State:
         self.x = 0
         self.y = 0
         self.energy = 0
-        self.energy_pre = 0
         self.mapInfo = MapInfo()
         self.players = []
         self.stepCount = 0
@@ -116,7 +113,6 @@ class State:
             if player["playerId"] == self.id:
                 self.x = player["posx"]
                 self.y = player["posy"]
-                self.energy_pre = self.energy
                 self.energy = player["energy"]
                 self.score = player["score"]
                 self.lastAction = player["lastAction"]

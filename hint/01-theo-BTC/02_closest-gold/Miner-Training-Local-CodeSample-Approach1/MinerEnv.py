@@ -3,7 +3,10 @@ import numpy as np
 from GAME_SOCKET_DUMMY import GameSocket #in testing version, please use GameSocket instead of GAME_SOCKET_DUMMY
 from MINER_STATE import State
 import constants
+import non_RL_agent
+import logging
 
+#logging.basicConfig(level=logging.DEBUG)
 
 TreeID = 1
 TrapID = 2
@@ -16,7 +19,6 @@ class MinerEnv:
         self.score_pre = self.state.score#Storing the last score for designing the reward function
         self.pos_x_pre =  self.state.x
         self.pos_y_pre = self.state.y
-        self.n_mines_visited = 0
         
     def start(self): #connect to server
         self.socket.connect()
@@ -35,7 +37,6 @@ class MinerEnv:
             self.score_pre = self.state.score#Storing the last score for designing the reward function
             self.pos_x_pre =  self.state.x
             self.pos_y_pre = self.state.y
-            self.n_mines_visited = 0
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -64,7 +65,11 @@ class MinerEnv:
                     view[y, x] = self.state.mapInfo.gold_amount(x, y)
         return view
 
-
+    def get_traditional_state(self):
+        view = self.get_2D_view()
+        state = view.flatten().tolist()
+        state.extend([self.state.x, self.state.y])
+        return np.array(state)
 
     def get_state(self):
         #Local view
@@ -89,8 +94,12 @@ class MinerEnv:
         self.pos_x_gold_first = self.state.x
         self.pos_y_gold_first = self.state.y
         if len(self.state.mapInfo.golds) > 0:
-            self.pos_x_gold_first = self.state.mapInfo.golds[0]["posx"]
-            self.pos_y_gold_first = self.state.mapInfo.golds[0]["posy"]         
+            #self.pos_x_gold_first = self.state.mapInfo.golds[0]["posx"]
+            #self.pos_y_gold_first = self.state.mapInfo.golds[0]["posy"]
+            pos_closest_gold = non_RL_agent.find_closest_gold(self.get_traditional_state())
+            self.pos_x_gold_first, self.pos_y_gold_first = pos_closest_gold
+
+        logging.debug(f"self.pos_x_gold_first = {self.pos_x_gold_first}")
         DQNState.append(self.pos_x_gold_first - self.state.x)
         DQNState.append(self.pos_y_gold_first - self.state.y)
                 
@@ -109,7 +118,6 @@ class MinerEnv:
             for g in self.socket.stepState.golds:
                     if g.posx == self.state.x and g.posy == self.state.y:
                         self.socket.stepState.golds.remove(g)
-                        self.n_mines_visited += 1
         #gold_digged = self.state.score - self.score_pre
         #self.score_pre = self.state.score
         #if gold_digged > 0:

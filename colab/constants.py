@@ -31,6 +31,13 @@ available_actions = {
     "dig": '5',
 }
 
+actionStr2ndarray = {
+    "up": np.array([0, -1]),
+    "down": np.array([0, 1]),
+    "left": np.array([-1, 0]),
+    "right": np.array([1, 0]),
+}
+
 code2action = {value: key for key, value in available_actions.items()}
 
 punishments = {
@@ -99,6 +106,16 @@ maps = {
       [-1,500,-1,-3,-2,0,-1,450,-1,0,0,-1,500,-1,-2,-1,-2,0,50,0,0],
     ],
 }
+
+
+agent_state = (
+    "PLAYing",
+    "out_of_MAP",
+    "no_more_ENERGY",
+    "INVALID_action",
+    "no_more_GOLD",
+    "no_more_STEP",
+)
 
 
 maps_ndarray = np.array([maps[i] for i in range(1,5+1)])

@@ -88,7 +88,6 @@ class State:
         self.x = 0
         self.y = 0
         self.energy = 0
-        self.energy_pre = 0
         self.mapInfo = MapInfo()
         self.players = []
         self.stepCount = 0
@@ -116,7 +115,6 @@ class State:
             if player["playerId"] == self.id:
                 self.x = player["posx"]
                 self.y = player["posy"]
-                self.energy_pre = self.energy
                 self.energy = player["energy"]
                 self.score = player["score"]
                 self.lastAction = player["lastAction"]
