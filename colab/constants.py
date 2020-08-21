@@ -1,5 +1,9 @@
 import numpy as np
 
+forest_energy = np.mean(np.arange(5,20))
+forest_energy = np.random.randint(5,20+1)
+forest_energy = 20
+
 width = 21
 height = 9
 n_px = width*height

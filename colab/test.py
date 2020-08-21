@@ -30,9 +30,11 @@ tf.disable_v2_behavior()
 
 import constants
 import non_RL_agent
+import non_RL_agent02
 import non_RL_agent03
 import non_RL_agent04
 import non_RL_agent05
+import non_RL_agent06
 
 
 #Classes in GAME_SOCKET_DUMMY.py
@@ -546,7 +548,8 @@ class Bot2:
 
     def next_action(self):
         s = self.get_state()
-        return int(non_RL_agent03.greedy_policy(s))
+        #return int(non_RL_agent03.greedy_policy(s))
+        return int(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
  
         #if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
         #    if self.info.energy >= 6:
@@ -592,25 +595,59 @@ class Bot3:
         self.state = State()
         self.info = PlayerInfo(id)
 
+    def get_state(self):
+        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+        for x in range(self.state.mapInfo.max_x + 1):
+            for y in range(self.state.mapInfo.max_y + 1):
+                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
+                    view[y, x] = -TreeID
+                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
+                    view[y, x] = -TrapID
+                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
+                    view[y, x] = -SwampID
+                if self.state.mapInfo.gold_amount(x, y) > 0:
+                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
+
+        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
+        
+        #DQNState.append(self.state.x)
+        #DQNState.append(self.state.y)
+        #DQNState.append(self.state.energy)
+        DQNState.append(self.info.posx)
+        DQNState.append(self.info.posy)
+        DQNState.append(self.info.energy)
+        for player in self.state.players:
+            # self.info.playerId is the id of the current bot
+            if player["playerId"] != self.info.playerId:
+                DQNState.append(player["posx"])
+                DQNState.append(player["posy"])
+                
+        DQNState = np.array(DQNState)
+
+        return DQNState
+
+
     def next_action(self):
-        if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
-            if self.info.energy >= 6:
-                return self.ACTION_CRAFT
-            else:
-                return self.ACTION_FREE
-        if self.info.energy < 5:
-            return self.ACTION_FREE
-        else:
-            action = self.ACTION_GO_LEFT
-            if self.info.posx % 2 == 0:
-                if self.info.posy < self.state.mapInfo.max_y:
-                    action = self.ACTION_GO_DOWN
-            else:
-                if self.info.posy > 0:
-                    action = self.ACTION_GO_UP
-                else:
-                    action = self.ACTION_GO_RIGHT            
-            return action
+        s = self.get_state()
+        return int(non_RL_agent02.greedy_policy(s))
+        #if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
+        #    if self.info.energy >= 6:
+        #        return self.ACTION_CRAFT
+        #    else:
+        #        return self.ACTION_FREE
+        #if self.info.energy < 5:
+        #    return self.ACTION_FREE
+        #else:
+        #    action = self.ACTION_GO_LEFT
+        #    if self.info.posx % 2 == 0:
+        #        if self.info.posy < self.state.mapInfo.max_y:
+        #            action = self.ACTION_GO_DOWN
+        #    else:
+        #        if self.info.posy > 0:
+        #            action = self.ACTION_GO_UP
+        #        else:
+        #            action = self.ACTION_GO_RIGHT            
+        #    return action
 
     def new_game(self, data):
         try:
@@ -989,10 +1026,15 @@ for mapID in mapID_gen():
         s = minerEnv.get_state()
         terminate = False # This indicates whether the episode has ended
         maxStep = minerEnv.state.mapInfo.maxStep
+        #logging.debug(f"maxStep = {maxStep}")
+        #print(f"maxStep = {maxStep}")
         for step in range(0, maxStep):
+            #minerEnv.step(non_RL_agent.greedy_policy(s))
             #minerEnv.step(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
             #minerEnv.step(non_RL_agent04.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
-            minerEnv.step(non_RL_agent05.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
+            #minerEnv.step(non_RL_agent05.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
+            #minerEnv.step(non_RL_agent05.greedy_policy(minerEnv))
+            minerEnv.step(non_RL_agent06.greedy_policy(s))
             s_next = minerEnv.get_state()
             terminate = minerEnv.check_terminate()
             s = s_next

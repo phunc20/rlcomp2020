@@ -1,9 +1,10 @@
+import logging
 import numpy as np
+from scipy.ndimage import gaussian_filter
 from constants import *
 from viz_utils import *
-import logging
-#logging.basicConfig(filename='example.log',level=logging.DEBUG)
-#logging.basicConfig(level=logging.DEBUG)
+
+
 
 def find_largest_gold(s):
     numerical_image = s[:n_px].reshape((height, width))
@@ -15,7 +16,10 @@ def find_largest_gold(s):
     return pos_largest
 
 def find_pos_golds(s):
-    numerical_image = s[:n_px].reshape((height, width))
+    if s.shape == (height, width):
+        numerical_image = s
+    else:
+        numerical_image = s[:n_px].reshape((height, width))
     #print(f"\nnumerical_image =\n{numerical_image}")
     row_col_golds = np.argwhere(numerical_image>0)
     pos_golds = np.zeros_like(row_col_golds)
@@ -52,6 +56,46 @@ def find_worthiest_gold(s):
     ])
     index_worthiest = np.argmax(worth_golds)
     return pos_golds[index_worthiest]
+
+def density_range():
+    """
+    3x3
+    """
+    # TODO
+    pass
+
+def exist_gold_3x3(view, pos_agent):
+    # TODO
+    x_agent = pos_agent[0]
+    y_agent = pos_agent[1]
+    # Too naive
+    #neighborhood_3x3 = view[y_agent-1:y_agent+2, x_agent-1:x_agent+2]
+    # Correction
+    neighborhood_3x3 = view[
+        max(0, y_agent-1): min(y_agent+2, height),
+        max(0, x_agent-1): min(x_agent+2, width)
+    ]
+    return np.any(neighborhood_3x3 > 0)
+
+def find_densest_gold(s):
+    numerical_image = s[:n_px].reshape((height, width))
+    pos_agent = s[n_px:n_px+2]
+    if exist_gold_3x3(numerical_image, pos_agent):
+        return find_closest_gold(s)
+    else:
+        #view_gold_only = numerical_image[numerical_image > 0]
+        #view_gold_only = np.max(numerical_image, 0)
+        # All WRONG, the above.
+        view_gold_only = np.maximum(numerical_image, 0)
+        #print(f"view_gold_only.shape = {view_gold_only.shape}")
+        view_gold_density = gaussian_filter(view_gold_only.astype(np.float32), sigma=1)
+        #print(f"view_gold_density.shape = {view_gold_density.shape}")
+        # TODO: It would be more precise to make non-gold position zero.
+        row_col_largest = np.unravel_index(np.argmax(view_gold_density, axis=None), view_gold_density.shape)
+        #print(f"row_col_largest = {row_col_largest}")
+        pos_densest = np.array(row_col_largest[::-1])
+        #print(f"pos_densest = {pos_densest}")
+        return pos_densest
 
 def need_rest(next_terrain, energy):
     if next_terrain == "gold":
@@ -113,17 +157,7 @@ def less_severe_index(terrains):
         return index
     return 0
 
-def inverse_displacement(displacement):
-    if displacement == "up":
-        return "down"
-    if displacement == "down":
-        return "up"
-    if displacement == "left":
-        return "right"
-    if displacement == "right":
-        return "left"
-
-def greedy_policy(s, how_gold=find_closest_gold, prev_displacement=None):
+def greedy_policy(s, how_gold=find_densest_gold):
     #imshow(prettier_render(s))
     numerical_image = s[:n_px].reshape((height, width))
     #pos_closest_gold = find_closest_gold(s)
@@ -172,11 +206,8 @@ def greedy_policy(s, how_gold=find_closest_gold, prev_displacement=None):
             pos_terrain = pos_agent + np.array([0,1])
         elif displacement == "up":
             pos_terrain = pos_agent + np.array([0,-1])
-        logging.debug(f"pos_terrain = {pos_terrain}")
         #print(f"pos_terrain = {pos_terrain}")
         id_terrain = -numerical_image[pos_terrain[1], pos_terrain[0]]
-        logging.debug(f"id_terrain = {id_terrain}")
-        #print(f"id_terrain = {id_terrain}")
         name_terrain = terrain_names[id_terrain] if id_terrain >= 0 else "gold"
         upcoming_terrains.append(name_terrain)
 
@@ -184,56 +215,13 @@ def greedy_policy(s, how_gold=find_closest_gold, prev_displacement=None):
         index = less_severe_index(upcoming_terrains)
     else:
         index = 0
+    #print(f"upcoming_terrains = {upcoming_terrains}")
+    #print(f"index = {index}")
     next_terrain = upcoming_terrains[index]
-    ##################################
-    ## BEGIN: Never step into swamp ##
-    ##################################
-    if next_terrain == "swamp":
-        permissible_displacements = {"up", "down", "left", "right"}
-        # Avoid infinite loop, e.g. [up, down, up, down, ...]
-        if prev_displacement:
-            permissible_displacements.remove(inverse_displacement(prev_displacement))
-
-        if pos_agent[0] == 0: # x = 0
-            permissible_displacements.remove("left")
-        elif pos_agent[0] == width-1:
-            permissible_displacements.remove("right")
-
-        if pos_agent[1] == 0: # y = 0
-            permissible_displacements.remove("up")
-        elif pos_agent[1] == height-1:
-            permissible_displacements.remove("down")
-        permissible_displacements = permissible_displacements - set(needed_displacements)
-        logging.debug(f"permissible_displacements = {permissible_displacements}")
-        #print(f"permissible_displacements = {permissible_displacements}")
-        if len(permissible_displacements) == 0:
-            pass
-        else:
-            # This will then be a singleton list
-            chosen = np.random.choice(list(permissible_displacements))
-            logging.debug(f"chosen = {chosen}")
-            #print(f"chosen = {chosen}")
-            needed_displacements = [chosen]
-            index = 0
-            if chosen == "right":
-                pos_terrain = pos_agent + np.array([1,0])
-            elif chosen == "left":
-                pos_terrain = pos_agent + np.array([-1,0])
-            elif chosen == "down":
-                pos_terrain = pos_agent + np.array([0,1])
-            elif chosen == "up":
-                pos_terrain = pos_agent + np.array([0,-1])
-            id_terrain = -numerical_image[pos_terrain[1], pos_terrain[0]]
-            next_terrain = terrain_names[id_terrain] if id_terrain >= 0 else "gold"
-    ################################
-    ## END: Never step into swamp ##
-    ################################
-    logging.debug("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
     #print("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
     if need_rest(next_terrain, energy_agent):
         return available_actions["rest"]
     else:
-        logging.debug(f"(Final) needed_displacements = {needed_displacements}, index = {index}, pos_agent = {pos_agent}")
-        #print(f"(Final) needed_displacements = {needed_displacements}, index = {index}, pos_agent = {pos_agent}")
+        #print(f"(Final) needed_displacements = {needed_displacements}, index = {index}")
         return available_actions[needed_displacements[index]]
 
