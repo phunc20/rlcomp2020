@@ -27,12 +27,13 @@ import tensorflow.keras as keras
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1.keras import backend as K
 tf.disable_v2_behavior()
+import logging
+#logging.basicConfig(level=logging.DEBUG)
 
 import constants
 import non_RL_agent
 import non_RL_agent03
 import non_RL_agent04
-import non_RL_agent05
 
 
 #Classes in GAME_SOCKET_DUMMY.py
@@ -975,43 +976,49 @@ def mapID_gen():
     for i in range(len(shuffled)):
         yield shuffled[i]
 
-final_score = 0
-for mapID in mapID_gen():
-    try:
-        #mapID = np.random.randint(0, 5)
-        posID_x = np.random.randint(MAP_MAX_X) 
-        posID_y = np.random.randint(MAP_MAX_Y)
-
-        request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
-        minerEnv.send_map_info(request)
-
-        minerEnv.reset()
-        s = minerEnv.get_state()
-        terminate = False # This indicates whether the episode has ended
-        maxStep = minerEnv.state.mapInfo.maxStep
-        for step in range(0, maxStep):
-            #minerEnv.step(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
-            #minerEnv.step(non_RL_agent04.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
-            minerEnv.step(non_RL_agent05.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
-            s_next = minerEnv.get_state()
-            terminate = minerEnv.check_terminate()
-            s = s_next
-            
-            if terminate == True:
-                break
-
-        print('(mapID {:d})'.format(mapID+1))
-        print('(agent)   gold {: 5d}/{: 4d}   step {: 4d}   die of {}'.format(minerEnv.state.score, constants.gold_total(maps[mapID]), step+1, game_over_reason[minerEnv.state.status]))
-        print("(bot1)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[0].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[0].state.stepCount))
-        print("(bot2)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[1].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[1].state.stepCount))
-        print("(bot3)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[2].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[2].state.stepCount))
-        print()
-        final_score += minerEnv.state.score
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()                
-        #print("Finished.")
-        break
-
-print(f"final_score = {final_score}")
+#final_score = 0
+episode = 0
+score_considered_bad = 500
+#logging.debug(f"score_considered_bad = {score_considered_bad}")
+print(f"score_considered_bad = {score_considered_bad}")
+while True:
+    for mapID in mapID_gen():
+        try:
+            episode += 1
+            #mapID = np.random.randint(0, 5)
+            posID_x = np.random.randint(MAP_MAX_X) 
+            posID_y = np.random.randint(MAP_MAX_Y)
+    
+            request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
+            minerEnv.send_map_info(request)
+    
+            minerEnv.reset()
+            s = minerEnv.get_state()
+            terminate = False # This indicates whether the episode has ended
+            maxStep = minerEnv.state.mapInfo.maxStep
+            for step in range(0, maxStep):
+                minerEnv.step(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
+                #minerEnv.step(non_RL_agent04.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
+                s_next = minerEnv.get_state()
+                terminate = minerEnv.check_terminate()
+                s = s_next
+                
+                if terminate == True:
+                    break
+            print('(episode {: 5d})   score {: 4d}'.format(episode, minerEnv.state.score))
+            if minerEnv.state.score < score_considered_bad:
+                #print('(episod {: 5d}   mapID {:d})'.format(episode, mapID+1))
+                print('(mapID {:d})'.format(mapID+1))
+                print('(agent)   gold {: 5d}/{: 4d}   step {: 4d}   die of {}'.format(minerEnv.state.score, constants.gold_total(maps[mapID]), step+1, game_over_reason[minerEnv.state.status]))
+                print("(bot1)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[0].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[0].state.stepCount))
+                print("(bot2)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[1].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[1].state.stepCount))
+                print("(bot3)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[2].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[2].state.stepCount))
+                print()
+            #final_score += minerEnv.state.score
+    
+        except Exception as e:
+            import traceback
+            traceback.print_exc()                
+            #print("Finished.")
+            break
+    

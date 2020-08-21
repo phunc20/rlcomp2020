@@ -84,8 +84,9 @@ def need_rest(next_terrain, energy):
 
 def less_severe_index(terrains):
     """
-    N.B. This is the major diff, as compared to non_RL1 and non_RL2.
-    Mainly, we view "land", "trap", and "forest" as equally severe
+    N.B. This is the only diff, as compared to non_RL04.
+    "land" is the least severe, "trap" and "forest" viewed equally severe.
+
     args
         terrains, list
             a list of two terrains
@@ -97,12 +98,14 @@ def less_severe_index(terrains):
     ##if terrains[0] == terrains[1]:
     ##    return terrains[0]
     ## Just return str's of terrain in increasing severity order
-    #if "land" in terrains:
-    #    if terrains[0] == "land":
-    #        index = 0
-    #    else:
-    #        index = 1
-    #    return index
+    if "land" in terrains:
+        if terrains[0] == terrains[1]:
+            index = np.random.randint(0,2)
+        elif terrains[0] == "land":
+            index = 0
+        else:
+            index = 1
+        return index
     #if "trap" in terrains:
     #    if terrains[0] == "trap":
     #        index = 0
