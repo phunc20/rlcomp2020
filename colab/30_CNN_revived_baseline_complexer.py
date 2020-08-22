@@ -35,6 +35,17 @@ import non_RL_agent05
 import non_RL_agent06
 
 
+n_episodes = 50_000_000
+#n_epsilon_decay = int(n_episodes*.7)
+n_epsilon_decay = 10**6 / 0.99
+n_episodes_buf_fill = 10_000
+batch_size = 32
+discount_rate = 0.95
+lr_optimizer = 2.5e-4
+loss_fn = keras.losses.mean_squared_error
+max_replay_len = 1_000_000
+
+
 #Classes in GAME_SOCKET_DUMMY.py
 class ObstacleInfo:
     # initial energy for obstacles: Land (key = 0): -1, Forest(key = -1): 0 (random), Trap(key = -2): -10, Swamp (key = -3): -5
@@ -931,16 +942,6 @@ env.start() # Connect to the game
 
 
 
-mapID = np.random.randint(0, 5)
-posID_x = np.random.randint(constants.width) 
-posID_y = np.random.randint(constants.height)
-request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
-env.send_map_info(request)
-#obs = env.reset()
-env.reset()
-obs = env.get_state()
-
-
 #eliminated = []
 #def pictorial_state(obs):
 #    pictorial = np.zeros((constants.height, constants.width, 1+4), dtype=np.float32)
@@ -978,7 +979,9 @@ input_shape = [constants.height, constants.width, 1+1]
 n_outputs = 6
 
 model = keras.models.Sequential([
-    Conv2D(64, 3, activation="relu", padding="same", input_shape=input_shape),
+    Conv2D(8, 3, activation="relu", padding="same", input_shape=input_shape),
+    #MaxPooling2D(2),
+    Conv2D(8, 3, activation="relu", padding="same"),
     #MaxPooling2D(2),
     #Conv2D(128, 3, activation="relu", padding="same"),
     #Conv2D(128, 3, activation="relu", padding="same"),
@@ -992,7 +995,6 @@ model = keras.models.Sequential([
 ])
 
 
-max_replay_len = 1_000_000
 
 
 from collections import deque
@@ -1029,11 +1031,9 @@ def play_one_step(env, state, epsilon):
     return next_state, reward, done
 
 
-batch_size = 32
-discount_rate = 0.95
 #optimizer = keras.optimizers.Adam(lr=1e-3)
-optimizer = keras.optimizers.Adam(lr=2.5e-4)
-loss_fn = keras.losses.mean_squared_error
+#optimizer = keras.optimizers.Adam(lr=2.5e-4)
+optimizer = keras.optimizers.Adam(lr=lr_optimizer)
 
 def training_step(batch_size):
     experiences = sample_experiences(batch_size)
@@ -1062,9 +1062,6 @@ best_score = 0
 
 
 from constants import n_allowed_steps
-n_episodes = 50_000_000
-#n_epsilon_decay = int(n_episodes*.7)
-n_epsilon_decay = 10**6 / 0.99
 
 now = datetime.datetime.now()
 now_str = now.strftime("%Y%m%d-%H%M")
@@ -1102,7 +1099,7 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         log.write(message)
     
         #if episode > 500:
-        if episode > 10_000:
+        if episode > n_episodes_buf_fill:
             training_step(batch_size)
 
 np.save(f"scores-{now_str}", np.array(scores))
