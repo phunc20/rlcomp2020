@@ -29,7 +29,7 @@ class DQN:
             action_space, #The number of actions for the DQN network
             gamma = 0.95, #The discount factor
             epsilon = 1, #Epsilon - the exploration factor
-            epsilon_min = 0.1, #The minimum epsilon 
+            epsilon_min = 0.01, #The minimum epsilon 
             epsilon_decay = 0.999,#The decay epislon for each update_epsilon time
             learning_rate = 0.00025, #The learning rate for the DQN network
             tau = 0.125, #The factor for updating the DQN target network from the DQN network
