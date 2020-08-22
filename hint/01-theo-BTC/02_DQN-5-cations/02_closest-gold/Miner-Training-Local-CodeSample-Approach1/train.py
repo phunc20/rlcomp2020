@@ -47,11 +47,11 @@ ACTIONNUM = 5  # Better include "rest"
 MAP_MAX_X = 21 #Width of the Map
 MAP_MAX_Y = 9  #Height of the Map
 
-DQNAgent = DQN(INPUTNUM, ACTIONNUM, epsilon=0.7)
-h5 = "TrainedModels/DQNmodel_20200821-0500_ep20000.h5"
-DQNAgent.model.load_weights(h5)
-DQNAgent.target_model.load_weights(h5)
-#DQNAgent = DQN(INPUTNUM, ACTIONNUM)
+#DQNAgent = DQN(INPUTNUM, ACTIONNUM, epsilon=0.7)
+#h5 = "TrainedModels/DQNmodel_20200821-0500_ep20000.h5"
+#DQNAgent.model.load_weights(h5)
+#DQNAgent.target_model.load_weights(h5)
+DQNAgent = DQN(INPUTNUM, ACTIONNUM)
 
 # Initialize a DQN model and a memory batch for storing experiences
 memory = Memory(MEMORY_SIZE)
@@ -132,7 +132,8 @@ for episode_i in range(0, N_EPISODE):
         #    remaining_gold += g["amount"]
         total_gold = gold_total(maps[mapID])
         #print("(Episode {: 5d})   cumulated_reward: {:7.1f}   Steps: {: 4d}   eps: {:5.2f}   remaining_gold: {: 7d}/{}  ({})".format(episode_i+1, total_reward, step + 1, DQNAgent.epsilon, remaining_gold, total_gold, game_over_reason[minerEnv.state.status]))
-        print("(Episode {: 5d})   cumulated_reward: {:7.1f}   Steps: {: 3d}   eps: {:4.2f}   n_mines_visited: {: 2d}/{}   remaining_gold: {: 5d}/{}   mapID: {}   ({})".format(episode_i+1, total_reward, step + 1, DQNAgent.epsilon, minerEnv.n_mines_visited, n_mines, remaining_gold, total_gold, mapID, game_over_reason[minerEnv.state.status]))
+        #print("(Episode {: 5d})   cumulated_reward: {:7.1f}   Steps: {: 3d}   eps: {:4.2f}   n_mines_visited: {: 2d}/{}   remaining_gold: {: 5d}/{}   mapID: {}   ({})".format(episode_i+1, total_reward, step + 1, DQNAgent.epsilon, minerEnv.n_mines_visited, n_mines, remaining_gold, total_gold, mapID, game_over_reason[minerEnv.state.status]))
+        print("(Episode {: 5d}/{})   cumulated_reward: {:7.1f}   Steps: {: 3d}   eps: {:4.2f}   n_mines_visited: {: 2d}/{}   remaining_gold: {: 5d}/{}   mapID: {}   ({})".format(episode_i+1, N_EPISODE, total_reward, step + 1, DQNAgent.epsilon, minerEnv.n_mines_visited, n_mines, remaining_gold, total_gold, mapID, game_over_reason[minerEnv.state.status]))
         
         #Decreasing the epsilon if the replay starts
         if train == True:
