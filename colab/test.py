@@ -1013,6 +1013,9 @@ def mapID_gen():
         yield shuffled[i]
 
 final_score = 0
+bot1_final_score = 0
+bot2_final_score = 0
+bot3_final_score = 0
 for mapID in mapID_gen():
     try:
         #mapID = np.random.randint(0, 5)
@@ -1049,6 +1052,9 @@ for mapID in mapID_gen():
         print("(bot3)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[2].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[2].state.stepCount))
         print()
         final_score += minerEnv.state.score
+        bot1_final_score += minerEnv.socket.bots[0].get_score()
+        bot2_final_score += minerEnv.socket.bots[1].get_score()
+        bot3_final_score += minerEnv.socket.bots[2].get_score()
 
     except Exception as e:
         import traceback
@@ -1056,4 +1062,7 @@ for mapID in mapID_gen():
         #print("Finished.")
         break
 
-print(f"final_score = {final_score}")
+print(f"final_score      = {final_score}")
+print(f"bot1_final_score = {bot1_final_score}")
+print(f"bot2_final_score = {bot2_final_score}")
+print(f"bot3_final_score = {bot3_final_score}")

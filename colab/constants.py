@@ -1,5 +1,8 @@
 import numpy as np
 
+
+n_allowed_steps = 100
+
 forest_energy = np.mean(np.arange(5,20))
 forest_energy = np.random.randint(5,20+1)
 forest_energy = 20
@@ -121,6 +124,26 @@ agent_state = (
     "no_more_STEP",
 )
 
+
+#agent_state_id2str = {
+#    0: "PLAYing",
+#    1: "out_of_MAP",
+#    2: "no_more_ENERGY",
+#    3: "INVALID_action",
+#    4: "no_more_GOLD",
+#    5: "no_more_STEP",
+#}
+
+agent_state_id2str = (
+    "PLAYing",
+    "out_of_MAP",
+    "no_more_ENERGY",
+    "INVALID_action",
+    "no_more_GOLD",
+    "no_more_STEP",
+)
+
+agent_state_str2id = { agent_state_id2str[i]: i for i in range(len(agent_state_id2str)) }
 
 maps_ndarray = np.array([maps[i] for i in range(1,5+1)])
 

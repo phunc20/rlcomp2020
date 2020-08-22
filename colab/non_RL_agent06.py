@@ -88,7 +88,8 @@ def find_densest_gold(s):
         # All WRONG, the above.
         view_gold_only = np.maximum(numerical_image, 0)
         #print(f"view_gold_only.shape = {view_gold_only.shape}")
-        view_gold_density = gaussian_filter(view_gold_only.astype(np.float32), sigma=1)
+        #view_gold_density = gaussian_filter(view_gold_only.astype(np.float32), sigma=1)
+        view_gold_density = gaussian_filter(view_gold_only.astype(np.float32), sigma=1, mode="constant", truncate=1)
         #print(f"view_gold_density.shape = {view_gold_density.shape}")
         # TODO: It would be more precise to make non-gold position zero.
         row_col_largest = np.unravel_index(np.argmax(view_gold_density, axis=None), view_gold_density.shape)

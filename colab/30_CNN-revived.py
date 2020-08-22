@@ -20,9 +20,11 @@ from tensorflow.keras import optimizers
 
 import tensorflow.keras as keras
 
-import tensorflow.compat.v1 as tf
-from tensorflow.compat.v1.keras import backend as K
-tf.disable_v2_behavior()
+#import tensorflow.compat.v1 as tf
+#from tensorflow.compat.v1.keras import backend as K
+#tf.disable_v2_behavior()
+import tensorflow as tf
+from tensorflow.keras import backend as K
 
 import constants
 import non_RL_agent
@@ -747,6 +749,7 @@ class State:
         self.x = 0
         self.y = 0
         self.energy = 0
+        self.energy_pre = 0
         self.mapInfo = MapInfo()
         self.players = []
         self.stepCount = 0
@@ -775,6 +778,7 @@ class State:
                 self.x = player["posx"]
                 self.y = player["posy"]
                 self.energy = player["energy"]
+                self.energy_pre = self.energy
                 self.score = player["score"]
                 self.lastAction = player["lastAction"]
                 self.status = player["status"]
@@ -850,7 +854,17 @@ class MinerEnv:
         # `energyOnMap` will contribute to the types of terrain of `land`, `trap`, `forest` and `swamp`.
         # Recall. `forest` was designated by BTC to the value of 0, to mean random integer btw [5..20].
         energyOnMap[energyOnMap == 0] = - constants.forest_energy
-        state = np.maximum(view, energyOnMap)
+        channel0 = np.maximum(view, energyOnMap)
+        # Finish channel 0
+        # Channel 1 will contain the position of the agent
+        channel1 = np.zeros_like(channel0)
+        x_agent_out_of_map = self.state.x < 0 or self.state.x >= constants.width
+        y_agent_out_of_map = self.state.y < 0 or self.state.y >= constants.height
+        if x_agent_out_of_map or y_agent_out_of_map:
+            pass
+        else:
+            channel1[self.state.y, self.state.x] = self.state.energy
+        state = np.stack((channel0, channel1), axis=-1)
         return state
 
 
@@ -863,9 +877,7 @@ class MinerEnv:
             #reward += score_action*(100 - self.state.stepCount)
             reward += score_action
         
-        s = self.get_state()
-        reward += s[self.state.y-1, self.state.x-1]
-        ##If the DQN agent crashs into obstacels (Tree, Trap, Swamp), then it should be punished by a negative reward
+
         #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
         #    reward -= TreeID
         #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
@@ -875,28 +887,36 @@ class MinerEnv:
         #    if self.state.lastAction == 4:
         #        reward -= 40
 
-        # If out of the map, then the DQN agent should be punished by a larger nagative reward.
-        if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
+        #if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
+        if self.state.status == constants.agent_state_str2id["out_of_MAP"]:
             #if self.state.stepCount < 50:
             #    reward += -5*(50 - self.state.stepCount)
-            reward -= 100
+            reward -= 2000
+        else:
+            s = self.get_state()
+            #print(f"self.state.x, self.state.y = {self.state.x}, {self.state.y} ")
+            terrain_now = s[self.state.y, self.state.x, 0]
+            if terrain_now < 0 and self.state.lastAction != constants.rest:
+                # This substract the same amount of reward as energy when the agent steps into terrain_now, except for gold
+                reward += terrain_now
+
             
-        if self.state.status == State.STATUS_STOP_END_STEP:
+        #if self.state.status == State.STATUS_STOP_END_STEP:
+        if self.state.status == constants.agent_state_str2id["no_more_STEP"]:
             #reward += (self.state.score/total_gold) * 100
             pass
-        #Run out of energy, then the DQN agent should be punished by a larger nagative reward.
-        if self.state.status == State.STATUS_ELIMINATED_OUT_OF_ENERGY:
-            if self.state.lastAction != int(constants.available_actions["rest"]):
-                # Unless it is the last step and dig was more urgent
-                reward -= 30
+        #if self.state.status == State.STATUS_ELIMINATED_OUT_OF_ENERGY:
+        if self.state.status == constants.agent_state_str2id["no_more_ENERGY"]:
+            if self.state.lastAction != constants.rest:
+                reward -= 500
         
-        ## control comes to here \implies our agent is not dead yet
-        if self.state.status == State.STATUS_PLAYING:
-            if self.state.energy > 40 and self.state.lastAction == int(constants.available_actions["rest"]):
-                reward -= 10
-            else:
-                reward += 1
-        ## print ("reward",reward)
+        #if self.state.status == State.STATUS_PLAYING:
+        if self.state.status == constants.agent_state_str2id["PLAYing"]:
+            reward += 1
+            # We punish surplus `rest`
+            if self.state.energy_pre == constants.max_energy and self.state.lastAction == constants.rest:
+                reward -= 50
+
         return reward
 
     def check_terminate(self):
@@ -910,8 +930,6 @@ env = MinerEnv() # Creating a communication environment between the DQN model an
 env.start() # Connect to the game
 
 
-# In[15]:
-
 
 mapID = np.random.randint(0, 5)
 posID_x = np.random.randint(constants.width) 
@@ -923,39 +941,40 @@ env.reset()
 obs = env.get_state()
 
 
-eliminated = []
-def pictorial_state(obs):
-    pictorial = np.zeros((constants.height, constants.width, 1+4), dtype=np.float32)
-    # 1+4 is +1 for map and +1 for each of the players = 5 channels
-    # dtype=np.float32 because pictorial will later be carried into tensorflow CNN
-    pictorial[..., 0] = obs[:constants.n_px].reshape((constants.height, constants.width))
-    # position of agent: we put the energy value at the coordinate where stands the agent, the whole in channel 1, the channel for the agent.
-    x_agent, y_agent = obs[constants.n_px], obs[constants.n_px+1]
-    if x_agent >= constants.width or y_agent >= constants.height:
-        pass
-    else:
-        pictorial[y_agent, x_agent, 1] = obs[constants.n_px+2]
-    # position of bots: we put -1 on the coord of the bots
-    for i in range(1, 3+1):
-        if i in eliminated:
-            continue
-        y = obs[constants.n_px+(2*i+2)]
-        x = obs[constants.n_px+(2*i+1)]
-        if x >= constants.width or y >= constants.height:
-            eliminated.append(i)
-            continue
-        pictorial[y, x, i+1] = -1
-    return pictorial
+#eliminated = []
+#def pictorial_state(obs):
+#    pictorial = np.zeros((constants.height, constants.width, 1+4), dtype=np.float32)
+#    # 1+4 is +1 for map and +1 for each of the players = 5 channels
+#    # dtype=np.float32 because pictorial will later be carried into tensorflow CNN
+#    pictorial[..., 0] = obs[:constants.n_px].reshape((constants.height, constants.width))
+#    # position of agent: we put the energy value at the coordinate where stands the agent, the whole in channel 1, the channel for the agent.
+#    x_agent, y_agent = obs[constants.n_px], obs[constants.n_px+1]
+#    if x_agent >= constants.width or y_agent >= constants.height:
+#        pass
+#    else:
+#        pictorial[y_agent, x_agent, 1] = obs[constants.n_px+2]
+#    # position of bots: we put -1 on the coord of the bots
+#    for i in range(1, 3+1):
+#        if i in eliminated:
+#            continue
+#        y = obs[constants.n_px+(2*i+2)]
+#        x = obs[constants.n_px+(2*i+1)]
+#        if x >= constants.width or y >= constants.height:
+#            eliminated.append(i)
+#            continue
+#        pictorial[y, x, i+1] = -1
+#    return pictorial
 
 
 
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 
 
-#tf.random.set_seed(42)
+tf.random.set_seed(42)
 np.random.seed(42)
 
-input_shape = [constants.height, constants.width, 1+4]
+#input_shape = [constants.height, constants.width, 1+4]
+input_shape = [constants.height, constants.width, 1+1]
 n_outputs = 6
 
 model = keras.models.Sequential([
@@ -993,8 +1012,9 @@ def epsilon_greedy_policy(state, epsilon=0, n_actions=6):
     if np.random.rand() < epsilon:
         return np.random.randint(n_actions)
     else:
-        pictorial = pictorial_state(state)
-        Q_values = model.predict(pictorial[np.newaxis])
+        #pictorial = pictorial_state(state)
+        #Q_values = model.predict(pictorial[np.newaxis])
+        Q_values = model.predict(state[np.newaxis])
         return np.argmax(Q_values[0])
 
 
@@ -1011,72 +1031,77 @@ def play_one_step(env, state, epsilon):
 
 batch_size = 32
 discount_rate = 0.95
-optimizer = keras.optimizers.Adam(lr=1e-3)
+#optimizer = keras.optimizers.Adam(lr=1e-3)
+optimizer = keras.optimizers.Adam(lr=2.5e-4)
 loss_fn = keras.losses.mean_squared_error
 
 def training_step(batch_size):
     experiences = sample_experiences(batch_size)
     states, actions, rewards, next_states, dones = experiences
-    pictorials = np.array([pictorial_state(s) for s in states])
-    next_pictorials = np.array([pictorial_state(next_s) for next_s in next_states])
-    next_Q_values = model.predict(next_pictorials)
+    #pictorials = np.array([pictorial_state(s) for s in states])
+    #next_pictorials = np.array([pictorial_state(next_s) for next_s in next_states])
+    #next_Q_values = model.predict(next_pictorials)
+    next_Q_values = model.predict(next_states)
     max_next_Q_values = np.max(next_Q_values, axis=1)
     target_Q_values = rewards + (1 - dones) * discount_rate * max_next_Q_values
     mask = tf.one_hot(actions, n_outputs)
     with tf.GradientTape() as tape:
-        #all_Q_values = model(states)
-        all_Q_values = model(pictorials)
+        #all_Q_values = model(pictorials)
+        all_Q_values = model(states)
         Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, keepdims=True)
         loss = tf.reduce_mean(loss_fn(target_Q_values, Q_values))
     grads = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
 
-
-#env.seed(42)
 np.random.seed(42)
-#tf.random.set_seed(42)
+tf.random.set_seed(42)
 
 scores = [] 
 best_score = 0
 
 
-n_episodes = 10_000
+from constants import n_allowed_steps
+n_episodes = 100_000
 n_epsilon_decay = int(n_episodes*.7)
-n_max_steps = 100
 
-for episode in range(n_episodes):
-    eliminated = []
-    mapID = np.random.randint(0, 5)
-    posID_x = np.random.randint(constants.width) 
-    posID_y = np.random.randint(constants.height)
-    request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
-    env.send_map_info(request)
-    #obs = env.reset()
-    env.reset()
-    obs = env.get_state()
-    sum_reward = 0
-    for step in range(n_max_steps):
-        epsilon = max(1 - episode / n_epsilon_decay, 0.01)
-        obs, reward, done = play_one_step(env, obs, epsilon)
-        sum_reward += reward
-        if done:
-            break
-    score = env.state.score*(n_max_steps - step)
-    #scores.append(score)
-    if score > best_score:
-        best_weights = model.get_weights()
-        best_score = reward
-    #print("\rEpisode: {}, Steps: {}, eps: {:.3f}".format(episode, step + 1, epsilon), end="")
-    #print("Episode: {: 5d}, Gold: {: 4d}, Steps: {: 3d}, eps: {:.3f}. ({})".format(episode, env.state.score, step + 1, epsilon, game_over_reason[env.state.status]), end="\n\n")
-    #print("(Episode: {: 5d})   Gold: {: 4d}, Steps: {: 3d}, eps: {:.3f}. ({})".format(episode, env.state.score, step + 1, epsilon, game_over_reason[env.state.status]))
-    print("(Episode {: 5d})   Gold: {: 4d}  sum_reward: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})".format(episode, env.state.score, sum_reward, step + 1, epsilon, constants.agent_state[env.state.status]))
+now = datetime.datetime.now()
+now_str = now.strftime("%Y%m%d-%H%M")
+script_name = __file__.split('.')[0]
+save_path = os.path.join("models", script_name)
+os.makedirs(save_path, exist_ok=True)
 
+with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
+    for episode in range(n_episodes):
+        eliminated = []
+        mapID = np.random.randint(0, 5)
+        posID_x = np.random.randint(constants.width) 
+        posID_y = np.random.randint(constants.height)
+        request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
+        env.send_map_info(request)
+        env.reset()
+        obs = env.get_state()
+        undiscounted_return = 0
+        for step in range(n_allowed_steps):
+            epsilon = max(1 - episode / n_epsilon_decay, 0.01)
+            obs, reward, done = play_one_step(env, obs, epsilon)
+            undiscounted_return += reward
+            if done:
+                break
+        #score = env.state.score*(n_allowed_steps - step)
+        score = env.state.score
+        scores.append(score)
+        if score > best_score:
+            best_weights = model.get_weights()
+            best_score = reward
+            model.save(f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5")
     
-    #if episode > 500:
-    if episode > 1000:
-        training_step(batch_size)
+        message = "(Episode {: 5d}/{})   Gold: {: 4d}  undiscounted_return: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
+        print(message, end='')
+        log.write(message)
+    
+        #if episode > 500:
+        if episode > 5000:
+            training_step(batch_size)
 
-model.set_weights(best_weights)
-
-
+np.save(f"scores-{now_str}", np.array(scores))
