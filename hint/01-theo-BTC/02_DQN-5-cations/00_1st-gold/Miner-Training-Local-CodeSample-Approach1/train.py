@@ -33,9 +33,9 @@ with open(filename, 'w') as f:
     pd.DataFrame(columns=header).to_csv(f, encoding='utf-8', index=False, header=True)
 
 # Parameters for training a DQN model
-N_EPISODE = 10000 #The number of episodes for training
+N_EPISODE = 90_000 #The number of episodes for training
 history = np.zeros((N_EPISODE,))
-MAX_STEP = 1000   #The number of steps for each episode
+#MAX_STEP = 1000   #The number of steps for each episode
 #BATCH_SIZE = 32   #The number of experiences for each replay 
 BATCH_SIZE = 64
 MEMORY_SIZE = 100000 #The size of the batch for storing experiences
@@ -47,11 +47,11 @@ ACTIONNUM = 5  # Better include "rest"
 MAP_MAX_X = 21 #Width of the Map
 MAP_MAX_Y = 9  #Height of the Map
 
-#DQNAgent = DQN(INPUTNUM, ACTIONNUM, epsilon=0.7)
-#h5 = "TrainedModels/DQNmodel_20200819-0231_ep16300.h5"
-#DQNAgent.model.load_weights(h5)
-#DQNAgent.target_model.load_weights(h5)
-DQNAgent = DQN(INPUTNUM, ACTIONNUM)
+DQNAgent = DQN(INPUTNUM, ACTIONNUM, epsilon=0.8)
+h5 = "TrainedModels/DQNmodel_20200821-0355_ep20000.h5"
+DQNAgent.model.load_weights(h5)
+DQNAgent.target_model.load_weights(h5)
+#DQNAgent = DQN(INPUTNUM, ACTIONNUM)
 
 # Initialize a DQN model and a memory batch for storing experiences
 memory = Memory(MEMORY_SIZE)
