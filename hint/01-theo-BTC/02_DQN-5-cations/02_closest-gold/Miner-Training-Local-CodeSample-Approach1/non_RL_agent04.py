@@ -2,6 +2,9 @@ import numpy as np
 from constants import *
 from viz_utils import *
 import logging
+#logging.basicConfig(filename='example.log',level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
+
 
 
 def find_largest_gold(s):
@@ -14,10 +17,7 @@ def find_largest_gold(s):
     return pos_largest
 
 def find_pos_golds(s):
-    if s.shape == (height, width):
-        numerical_image = s
-    else:
-        numerical_image = s[:n_px].reshape((height, width))
+    numerical_image = s[:n_px].reshape((height, width))
     #print(f"\nnumerical_image =\n{numerical_image}")
     row_col_golds = np.argwhere(numerical_image>0)
     pos_golds = np.zeros_like(row_col_golds)
@@ -84,6 +84,8 @@ def need_rest(next_terrain, energy):
 
 def less_severe_index(terrains):
     """
+    N.B. This is the major diff, as compared to non_RL1 and non_RL2.
+    Mainly, we view "land", "trap", and "forest" as equally severe
     args
         terrains, list
             a list of two terrains
@@ -92,31 +94,50 @@ def less_severe_index(terrains):
         index, int
             0 or 1
     """
-    #if terrains[0] == terrains[1]:
-    #    return terrains[0]
-    # Just return str's of terrain in increasing severity order
-    if "land" in terrains:
-        if terrains[0] == "land":
-            index = 0
-        else:
+    ##if terrains[0] == terrains[1]:
+    ##    return terrains[0]
+    ## Just return str's of terrain in increasing severity order
+    #if "land" in terrains:
+    #    if terrains[0] == "land":
+    #        index = 0
+    #    else:
+    #        index = 1
+    #    return index
+    #if "trap" in terrains:
+    #    if terrains[0] == "trap":
+    #        index = 0
+    #    else:
+    #        index = 1
+    #    return index
+    #if "forest" in terrains:
+    #    if terrains[0] == "forest":
+    #        index = 0
+    #    else:
+    #        index = 1
+    #    return index
+    #return 0
+    if "swamp" not in terrains:
+        index = np.random.randint(0,2)
+    else:
+        if terrains[0] == "swamp":
             index = 1
-        return index
-    if "trap" in terrains:
-        if terrains[0] == "trap":
-            index = 0
         else:
-            index = 1
-        return index
-    if "forest" in terrains:
-        if terrains[0] == "forest":
             index = 0
-        else:
-            index = 1
-        return index
-    return 0
+    return index
 
-def greedy_policy(s, how_gold=find_closest_gold):
+def inverse_displacement(displacement):
+    if displacement == "up":
+        return "down"
+    if displacement == "down":
+        return "up"
+    if displacement == "left":
+        return "right"
+    if displacement == "right":
+        return "left"
+
+def greedy_policy(env, how_gold=find_closest_gold, prev_displacement=None):
     #imshow(prettier_render(s))
+    s = env.get_state()
     numerical_image = s[:n_px].reshape((height, width))
     #pos_closest_gold = find_closest_gold(s)
     pos_closest_gold = how_gold(s)
@@ -164,8 +185,11 @@ def greedy_policy(s, how_gold=find_closest_gold):
             pos_terrain = pos_agent + np.array([0,1])
         elif displacement == "up":
             pos_terrain = pos_agent + np.array([0,-1])
+        logging.debug(f"pos_terrain = {pos_terrain}")
         #print(f"pos_terrain = {pos_terrain}")
         id_terrain = -numerical_image[pos_terrain[1], pos_terrain[0]]
+        logging.debug(f"id_terrain = {id_terrain}")
+        #print(f"id_terrain = {id_terrain}")
         name_terrain = terrain_names[id_terrain] if id_terrain >= 0 else "gold"
         upcoming_terrains.append(name_terrain)
 
@@ -174,10 +198,67 @@ def greedy_policy(s, how_gold=find_closest_gold):
     else:
         index = 0
     next_terrain = upcoming_terrains[index]
+    ########################################
+    ## BEGIN: isolate processing of swamp ##
+    ########################################
+    if next_terrain == "swamp":
+        pos_swamp = pos_agent + actionStr2ndarray[needed_displacements[index]]
+        #value_swamp = abs(env.socket.energyOnMap[pos_swamp[1], pos_swamp[0]])
+        value_swamp = abs(np.array(env.socket.energyOnMap)[pos_swamp[1], pos_swamp[0]])
+        # TODO: find out the power of that particular swamp
+        if value_swamp >= max_energy:
+            permissible_displacements = {"up", "down", "left", "right"}
+            ## Avoid infinite loop, e.g. [up, down, up, down, ...]
+            #if prev_displacement:
+            #    permissible_displacements.remove(inverse_displacement(prev_displacement))
+
+            # Avoid OUT-OF-MAP
+            if pos_agent[0] == 0: # x = 0
+                permissible_displacements.remove("left")
+            elif pos_agent[0] == width-1:
+                permissible_displacements.remove("right")
+
+            if pos_agent[1] == 0: # y = 0
+                permissible_displacements.remove("up")
+            elif pos_agent[1] == height-1:
+                permissible_displacements.remove("down")
+            permissible_displacements = permissible_displacements - set(needed_displacements)
+            logging.debug(f"permissible_displacements = {permissible_displacements}")
+            #print(f"permissible_displacements = {permissible_displacements}")
+            if len(permissible_displacements) == 0:
+                pass
+            else:
+                chosen = np.random.choice(list(permissible_displacements))
+                logging.debug(f"chosen = {chosen}")
+                #print(f"chosen = {chosen}")
+                needed_displacements = [chosen]
+                index = 0
+                if chosen == "right":
+                    pos_terrain = pos_agent + np.array([1,0])
+                elif chosen == "left":
+                    pos_terrain = pos_agent + np.array([-1,0])
+                elif chosen == "down":
+                    pos_terrain = pos_agent + np.array([0,1])
+                elif chosen == "up":
+                    pos_terrain = pos_agent + np.array([0,-1])
+                id_terrain = -numerical_image[pos_terrain[1], pos_terrain[0]]
+                next_terrain = terrain_names[id_terrain] if id_terrain >= 0 else "gold"
+
+        else: # Go thru the swamp when energy is enough
+            if energy_agent > value_swamp:
+                return available_actions[needed_displacements[index]]
+            else:
+                return available_actions["rest"]
+
+    ######################################
+    ## END: isolate processing of swamp ##
+    ######################################
+    logging.debug("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
     #print("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
     if need_rest(next_terrain, energy_agent):
         return available_actions["rest"]
     else:
-        #print(f"(Final) needed_displacements = {needed_displacements}, index = {index}")
+        logging.debug(f"(Final) needed_displacements = {needed_displacements}, index = {index}, pos_agent = {pos_agent}")
+        #print(f"(Final) needed_displacements = {needed_displacements}, index = {index}, pos_agent = {pos_agent}")
         return available_actions[needed_displacements[index]]
 

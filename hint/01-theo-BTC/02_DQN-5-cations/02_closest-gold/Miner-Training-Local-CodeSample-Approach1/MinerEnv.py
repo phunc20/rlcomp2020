@@ -19,6 +19,7 @@ class MinerEnv:
         self.score_pre = self.state.score#Storing the last score for designing the reward function
         self.pos_x_pre =  self.state.x
         self.pos_y_pre = self.state.y
+        self.n_mines_visited = 0
         
     def start(self): #connect to server
         self.socket.connect()
@@ -37,6 +38,7 @@ class MinerEnv:
             self.score_pre = self.state.score#Storing the last score for designing the reward function
             self.pos_x_pre =  self.state.x
             self.pos_y_pre = self.state.y
+            self.n_mines_visited = 0
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -118,6 +120,7 @@ class MinerEnv:
             for g in self.socket.stepState.golds:
                     if g.posx == self.state.x and g.posy == self.state.y:
                         self.socket.stepState.golds.remove(g)
+                        self.n_mines_visited += 1
         #gold_digged = self.state.score - self.score_pre
         #self.score_pre = self.state.score
         #if gold_digged > 0:

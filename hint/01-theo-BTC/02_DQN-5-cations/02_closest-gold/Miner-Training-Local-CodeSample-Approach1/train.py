@@ -33,11 +33,11 @@ with open(filename, 'w') as f:
     pd.DataFrame(columns=header).to_csv(f, encoding='utf-8', index=False, header=True)
 
 # Parameters for training a DQN model
-N_EPISODE = 10000 #The number of episodes for training
+N_EPISODE = 100_000 #The number of episodes for training
 history = np.zeros((N_EPISODE,))
-MAX_STEP = 1000   #The number of steps for each episode
+#MAX_STEP = 1000   #The number of steps for each episode
 #BATCH_SIZE = 32   #The number of experiences for each replay 
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 MEMORY_SIZE = 100000 #The size of the batch for storing experiences
 SAVE_NETWORK = 50  # After this number of episodes, the DQN model is saved for testing later. 
 INITIAL_REPLAY_SIZE = 1000 #The number of experiences are stored in the memory batch before starting replaying
@@ -47,11 +47,11 @@ ACTIONNUM = 5  # Better include "rest"
 MAP_MAX_X = 21 #Width of the Map
 MAP_MAX_Y = 9  #Height of the Map
 
-#DQNAgent = DQN(INPUTNUM, ACTIONNUM, epsilon=0.7)
-#h5 = "TrainedModels/DQNmodel_20200819-0231_ep16300.h5"
-#DQNAgent.model.load_weights(h5)
-#DQNAgent.target_model.load_weights(h5)
-DQNAgent = DQN(INPUTNUM, ACTIONNUM)
+DQNAgent = DQN(INPUTNUM, ACTIONNUM, epsilon=0.7)
+h5 = "TrainedModels/DQNmodel_20200821-0500_ep20000.h5"
+DQNAgent.model.load_weights(h5)
+DQNAgent.target_model.load_weights(h5)
+#DQNAgent = DQN(INPUTNUM, ACTIONNUM)
 
 # Initialize a DQN model and a memory batch for storing experiences
 memory = Memory(MEMORY_SIZE)
@@ -81,6 +81,7 @@ for episode_i in range(0, N_EPISODE):
         total_reward = 0 #The amount of rewards for the entire episode
         terminate = False #The variable indicates that the episode ends
         maxStep = minerEnv.state.mapInfo.maxStep #Get the maximum number of steps for each episode in training
+        n_mines = (minerEnv.get_2D_view() > 0).sum()
         #Start an episde for training
         for step in range(0, maxStep):
             action = DQNAgent.act(s)  # Getting an action from the DQN model from the state (s)
@@ -130,7 +131,8 @@ for episode_i in range(0, N_EPISODE):
         #for g in minerEnv.socket.stepState.golds:
         #    remaining_gold += g["amount"]
         total_gold = gold_total(maps[mapID])
-        print("(Episode {: 5d})   cumulated_reward: {:7.1f}   Steps: {: 4d}   eps: {:5.2f}   remaining_gold: {: 7d}/{}  ({})".format(episode_i+1, total_reward, step + 1, DQNAgent.epsilon, remaining_gold, total_gold, game_over_reason[minerEnv.state.status]))
+        #print("(Episode {: 5d})   cumulated_reward: {:7.1f}   Steps: {: 4d}   eps: {:5.2f}   remaining_gold: {: 7d}/{}  ({})".format(episode_i+1, total_reward, step + 1, DQNAgent.epsilon, remaining_gold, total_gold, game_over_reason[minerEnv.state.status]))
+        print("(Episode {: 5d})   cumulated_reward: {:7.1f}   Steps: {: 3d}   eps: {:4.2f}   n_mines_visited: {: 2d}/{}   remaining_gold: {: 5d}/{}   mapID: {}   ({})".format(episode_i+1, total_reward, step + 1, DQNAgent.epsilon, minerEnv.n_mines_visited, n_mines, remaining_gold, total_gold, mapID, game_over_reason[minerEnv.state.status]))
         
         #Decreasing the epsilon if the replay starts
         if train == True:

@@ -1,7 +1,3 @@
-import matplotlib.pyplot as plt
-import numpy as np
-#from viz_utils import *
-
 import sys
 import numpy as np
 #import pandas as pd
@@ -30,9 +26,12 @@ tf.disable_v2_behavior()
 
 import constants
 import non_RL_agent
+import non_RL_agent02
 import non_RL_agent03
-from DQNModel import DQN
-#from MinerEnv import MinerEnv
+import non_RL_agent04
+import non_RL_agent05
+import non_RL_agent06
+
 
 #Classes in GAME_SOCKET_DUMMY.py
 class ObstacleInfo:
@@ -117,8 +116,6 @@ class StepState:
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
-
-
 
 
 #Main class in GAME_SOCKET_DUMMY.py
@@ -426,8 +423,6 @@ class GameSocket:
     def close(self):
         print("Close socket.")
 
-
-
 class Bot1:
     ACTION_GO_LEFT = 0
     ACTION_GO_RIGHT = 1
@@ -496,7 +491,6 @@ class Bot1:
             import traceback
             traceback.print_exc()
 
-
 class Bot2:
     ACTION_GO_LEFT = 0
     ACTION_GO_RIGHT = 1
@@ -545,7 +539,8 @@ class Bot2:
 
     def next_action(self):
         s = self.get_state()
-        return int(non_RL_agent03.greedy_policy(s))
+        #return int(non_RL_agent03.greedy_policy(s))
+        return int(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
  
         #if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
         #    if self.info.energy >= 6:
@@ -578,7 +573,6 @@ class Bot2:
     def get_score(self):
         return [player["score"] for player in minerEnv.socket.bots[1].state.players if player["playerId"] == self.info.playerId][0]
 
-
 class Bot3:
     ACTION_GO_LEFT = 0
     ACTION_GO_RIGHT = 1
@@ -591,25 +585,59 @@ class Bot3:
         self.state = State()
         self.info = PlayerInfo(id)
 
+    def get_state(self):
+        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+        for x in range(self.state.mapInfo.max_x + 1):
+            for y in range(self.state.mapInfo.max_y + 1):
+                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
+                    view[y, x] = -TreeID
+                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
+                    view[y, x] = -TrapID
+                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
+                    view[y, x] = -SwampID
+                if self.state.mapInfo.gold_amount(x, y) > 0:
+                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
+
+        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
+        
+        #DQNState.append(self.state.x)
+        #DQNState.append(self.state.y)
+        #DQNState.append(self.state.energy)
+        DQNState.append(self.info.posx)
+        DQNState.append(self.info.posy)
+        DQNState.append(self.info.energy)
+        for player in self.state.players:
+            # self.info.playerId is the id of the current bot
+            if player["playerId"] != self.info.playerId:
+                DQNState.append(player["posx"])
+                DQNState.append(player["posy"])
+                
+        DQNState = np.array(DQNState)
+
+        return DQNState
+
+
     def next_action(self):
-        if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
-            if self.info.energy >= 6:
-                return self.ACTION_CRAFT
-            else:
-                return self.ACTION_FREE
-        if self.info.energy < 5:
-            return self.ACTION_FREE
-        else:
-            action = self.ACTION_GO_LEFT
-            if self.info.posx % 2 == 0:
-                if self.info.posy < self.state.mapInfo.max_y:
-                    action = self.ACTION_GO_DOWN
-            else:
-                if self.info.posy > 0:
-                    action = self.ACTION_GO_UP
-                else:
-                    action = self.ACTION_GO_RIGHT            
-            return action
+        s = self.get_state()
+        return int(non_RL_agent02.greedy_policy(s))
+        #if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
+        #    if self.info.energy >= 6:
+        #        return self.ACTION_CRAFT
+        #    else:
+        #        return self.ACTION_FREE
+        #if self.info.energy < 5:
+        #    return self.ACTION_FREE
+        #else:
+        #    action = self.ACTION_GO_LEFT
+        #    if self.info.posx % 2 == 0:
+        #        if self.info.posy < self.state.mapInfo.max_y:
+        #            action = self.ACTION_GO_DOWN
+        #    else:
+        #        if self.info.posy > 0:
+        #            action = self.ACTION_GO_UP
+        #        else:
+        #            action = self.ACTION_GO_RIGHT            
+        #    return action
 
     def new_game(self, data):
         try:
@@ -629,7 +657,6 @@ class Bot3:
             
     def get_score(self):
         return [player["score"] for player in minerEnv.socket.bots[1].state.players if player["playerId"] == self.info.playerId][0]
-
 
 
 #MinerState.py
@@ -759,23 +786,17 @@ class State:
         self.stepCount = self.stepCount + 1
 
 
-# In[498]:
-
-
-##MinerEnv.py
+#MinerEnv.py
 TreeID = 1
 TrapID = 2
 SwampID = 3
 class MinerEnv:
-    def __init__(self, host, port):
-        #self.socket = GameSocket(host, port)
+    def __init__(self):
         self.socket = GameSocket()
         self.state = State()
         
         self.score_pre = self.state.score#Storing the last score for designing the reward function
-        self.pos_x_pre =  self.state.x
-        self.pos_y_pre = self.state.y
-        
+
     def start(self): #connect to server
         self.socket.connect()
 
@@ -789,10 +810,6 @@ class MinerEnv:
         try:
             message = self.socket.receive() #receive game info from server
             self.state.init_state(message) #init state
-            
-            self.score_pre = self.state.score#Storing the last score for designing the reward function
-            self.pos_x_pre =  self.state.x
-            self.pos_y_pre = self.state.y
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -806,356 +823,260 @@ class MinerEnv:
             import traceback
             traceback.print_exc()
 
-    # Functions are customized by client
     def get_state(self):
-        #Local view
-        view =  np.zeros([5,5])
-        for i in range(-2,3):
-            for j in range(-2,3):
-                index_x = self.state.x + i
-                index_y = self.state.y + j
-                if index_x < 0 or index_y < 0 or index_x >= self.state.mapInfo.max_x or index_y >= self.state.mapInfo.max_y:
-                    view[2+i,2+j] = -1
-                else:
-                        if self.state.mapInfo.get_obstacle(index_x, index_y) == TreeID:
-                            view[2+i,2+j] = -1
-                        if self.state.mapInfo.get_obstacle(index_x, index_y) == TrapID:
-                            #view[2+i,2+j] = -1
-                            pass
-                        if self.state.mapInfo.get_obstacle(index_x, index_y) == SwampID:
-                            view[2+i,2+j] = -1
-                                
-        #Create the state
-        DQNState = view.flatten().tolist()
-        self.pos_x_gold_first = self.state.x
-        self.pos_y_gold_first = self.state.y
-        if len(self.state.mapInfo.golds) > 0:
-            self.pos_x_gold_first = self.state.mapInfo.golds[0]["posx"]
-            self.pos_y_gold_first = self.state.mapInfo.golds[0]["posy"]         
-        DQNState.append(self.pos_x_gold_first - self.state.x)
-        DQNState.append(self.pos_y_gold_first - self.state.y)
-                
-        #Convert the DQNState from list to array for training
-        DQNState = np.array(DQNState)
+        """
+        Fuse `view` and `energyOnMap` into a single matrix to have a simple and concise state/observation.
 
-        return DQNState
+        We want a matrix showing the following:
+        `gold`: The amount of gold
+        `all the others`: The energy that each type of terrain is going to take if being stepped into, e.g.
+                          `land` => -1, `trap` => -10, etc.
+        """
+        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+        for x in range(self.state.mapInfo.max_x + 1):
+            for y in range(self.state.mapInfo.max_y + 1):
+                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
+                    view[y, x] = -TreeID
+                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
+                    view[y, x] = -TrapID
+                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
+                    view[y, x] = -SwampID
+                if self.state.mapInfo.gold_amount(x, y) > 0:
+                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
+        energyOnMap = np.array(self.socket.energyOnMap)
+
+        # `view` will contribute only to the type of terrain of `gold`
+        view[view <= 0] = -9999 # Just a dummy large negative number to be got rid of later
+        # `energyOnMap` will contribute to the types of terrain of `land`, `trap`, `forest` and `swamp`.
+        # Recall. `forest` was designated by BTC to the value of 0, to mean random integer btw [5..20].
+        energyOnMap[energyOnMap == 0] = - constants.forest_energy
+        state = np.maximum(view, energyOnMap)
+        return state
+
 
     def get_reward(self):
-        # Calculate reward
+        # Initialize reward
         reward = 0
-        goldamount = self.state.mapInfo.gold_amount(self.state.x, self.state.y)
-        if goldamount > 0:
-            # i.e. when we (agent) are standing on gold, or when we finally arrive at gold
-            reward += 10
-            # remove the gold
-            for g in self.socket.stepState.golds:
-                    if g.posx == self.state.x and g.posy == self.state.y:
-                        self.socket.stepState.golds.remove(g)
-        #gold_digged = self.state.score - self.score_pre
-        #self.score_pre = self.state.score
-        #if gold_digged > 0:
-        #    #reward += 10
-        #    reward += 0.1*(constants.n_allowed_steps - self.state.stepCount) + 5
-            
-        #If the DQN agent crashs into obstacles (Tree, Trap, Swamp), then it should be punished by a negative reward
-        if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
-            reward -= 1
-        if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
-            reward -= 0.5
-            #pass
-        if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == SwampID:  # Swamp
-            reward -= 40
-        # previous distance and current distance, i.e. distance to 1st gold, previously and currently
-        #dis_pre = np.sqrt((self.pos_x_pre- self.pos_x_gold_first)**2 + (self.pos_y_pre-self.pos_y_gold_first)**2)
-        dis_pre = np.linalg.norm([self.pos_x_pre - self.pos_x_gold_first, self.pos_y_pre - self.pos_y_gold_first])
-        #dis_curr = np.sqrt((self.state.x - self.pos_x_gold_first)**2 + (self.state.y - self.pos_y_gold_first)**2)
-        dis_curr = np.linalg.norm([self.state.x - self.pos_x_gold_first, self.state.y - self.pos_y_gold_first])
-        #if (dis_curr - dis_pre) <= 0: # Reducing the distance , reward ++
-        if dis_curr < dis_pre: # Reducing the distance , reward ++
-                reward += 1
-        else:
-                reward -= 1
+        score_action = self.state.score - self.score_pre
+        self.score_pre = self.state.score
+        if score_action > 0:
+            #reward += score_action*(100 - self.state.stepCount)
+            reward += score_action
         
-        # If out of the map, then the DQN agent should be punished by a large nagative reward
-        if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
-            reward -= 40
-        if self.state.status == State.STATUS_PLAYING:
-            reward += 0.5
+        s = self.get_state()
+        reward += s[self.state.y-1, self.state.x-1]
+        ##If the DQN agent crashs into obstacels (Tree, Trap, Swamp), then it should be punished by a negative reward
+        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
+        #    reward -= TreeID
+        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
+        #    reward -= TrapID
+        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == SwampID:  # Swamp
+        #    reward -= SwampID
+        #    if self.state.lastAction == 4:
+        #        reward -= 40
 
-        # Meaningless rest: punish
-        if self.state.lastAction == constants.rest and self.state.energy > 42:
-            reward -= 3
+        # If out of the map, then the DQN agent should be punished by a larger nagative reward.
+        if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
+            #if self.state.stepCount < 50:
+            #    reward += -5*(50 - self.state.stepCount)
+            reward -= 100
+            
+        if self.state.status == State.STATUS_STOP_END_STEP:
+            #reward += (self.state.score/total_gold) * 100
+            pass
+        #Run out of energy, then the DQN agent should be punished by a larger nagative reward.
+        if self.state.status == State.STATUS_ELIMINATED_OUT_OF_ENERGY:
+            if self.state.lastAction != int(constants.available_actions["rest"]):
+                # Unless it is the last step and dig was more urgent
+                reward -= 30
+        
+        ## control comes to here \implies our agent is not dead yet
+        if self.state.status == State.STATUS_PLAYING:
+            if self.state.energy > 40 and self.state.lastAction == int(constants.available_actions["rest"]):
+                reward -= 10
+            else:
+                reward += 1
+        ## print ("reward",reward)
         return reward
 
     def check_terminate(self):
         #Checking the status of the game
         #it indicates the game ends or is playing
         return self.state.status != State.STATUS_PLAYING
-#TreeID = 1
-#TrapID = 2
-#SwampID = 3
-#class MinerEnv:
-#    def __init__(self):
-#        self.socket = GameSocket()
-#        self.state = State()
-#        
-#        self.score_pre = self.state.score#Storing the last score for designing the reward function
-#
-#    def start(self): #connect to server
-#        self.socket.connect()
-#
-#    def end(self): #disconnect server
-#        self.socket.close()
-#
-#    def send_map_info(self, request):#tell server which map to run
-#        self.socket.send(request)
-#
-#    def reset(self): #start new game
-#        try:
-#            message = self.socket.receive() #receive game info from server
-#            self.state.init_state(message) #init state
-#        except Exception as e:
-#            import traceback
-#            traceback.print_exc()
-#
-#    def step(self, action): #step process
-#        self.socket.send(action) #send action to server
-#        try:
-#            message = self.socket.receive() #receive new state from server
-#            self.state.update_state(message) #update to local state
-#        except Exception as e:
-#            import traceback
-#            traceback.print_exc()
-#
-#    # Functions are customized by client
-#    def get_state(self):
-#        # Building the map
-#        #view = np.zeros([self.state.mapInfo.max_x + 1, self.state.mapInfo.max_y + 1], dtype=int)
-#        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
-#        for x in range(self.state.mapInfo.max_x + 1):
-#            for y in range(self.state.mapInfo.max_y + 1):
-#                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
-#                    view[y, x] = -TreeID
-#                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
-#                    view[y, x] = -TrapID
-#                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
-#                    view[y, x] = -SwampID
-#                if self.state.mapInfo.gold_amount(x, y) > 0:
-#                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
-#
-#        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
-#        
-#        # Add position and energy of agent to the DQNState
-#        DQNState.append(self.state.x)
-#        DQNState.append(self.state.y)
-#        DQNState.append(self.state.energy)
-#        #Add position of bots 
-#        for player in self.state.players:
-#            if player["playerId"] != self.state.id:
-#                DQNState.append(player["posx"])
-#                DQNState.append(player["posy"])
-#                
-#        #Convert the DQNState from list to array for training
-#        DQNState = np.array(DQNState)
-#
-#        return DQNState
-#
-#    def get_reward(self):
-#        # Calculate reward
-#        reward = 0
-#        score_action = self.state.score - self.score_pre
-#        self.score_pre = self.state.score
-#        if score_action > 0:
-#            #If the DQN agent crafts golds, then it should obtain a positive reward (equal score_action)
-#            #reward += score_action
-#            reward += score_action*5
-#            
-#        ##If the DQN agent crashs into obstacels (Tree, Trap, Swamp), then it should be punished by a negative reward
-#        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
-#        #    reward -= TreeID
-#        #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TrapID:  # Trap
-#        #    reward -= TrapID
-#        if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == SwampID:  # Swamp
-#            reward -= SwampID
-#            if self.state.lastAction == 4:
-#                reward -= 40
-#
-#        # If out of the map, then the DQN agent should be punished by a larger nagative reward.
-#        if self.state.status == State.STATUS_ELIMINATED_WENT_OUT_MAP:
-#            #if self.state.stepCount < 50:
-#            #    reward += -5*(50 - self.state.stepCount)
-#            reward += -50
-#            
-#        #Run out of energy, then the DQN agent should be punished by a larger nagative reward.
-#        if self.state.status == State.STATUS_ELIMINATED_OUT_OF_ENERGY:
-#            if self.state.stepCount < 50:
-#                reward += -(50 - self.state.stepCount)
-#                if self.state.lastAction != 4:
-#                    # 4 is taking a rest
-#                    reward += -10
-#        
-#        # control comes to here \implies our agent is not dead yet
-#        if self.state.status == State.STATUS_PLAYING:
-#            if self.state.energy >= 45 and self.state.lastAction == 4:
-#                reward -= 30
-#        # print ("reward",reward)
-#        return reward
-#
-#    def check_terminate(self):
-#        #Checking the status of the game
-#        #it indicates the game ends or is playing
-#        return self.state.status != State.STATUS_PLAYING
 
 
-# Maps of 1st round
-def CreateMaps():
-    map0 = [
-      [450,-2,0,-2,150,-1,0,0,0,0,-1,-2,-2,-2,0,0,0,0,150,-2,350],
-      [-2,-2,-2,-2,-1,0,-1,-1,-1,-1,-3,50,-2,-2,-2,-2,-3,-3,50,-2,-1],
-      [-2,-2,200,-2,0,-2,0,-2,-3,-3,-2,0,-3,-2,-2,150,-3,-3,0,0,50],
-      [0,-3,-3,-2,0,0,-1,0,550,-3,-2,0,0,0,-1,0,0,-1,-1,-1,-2],
-      [-2,0,0,0,-1,0,-1,50,300,-3,-2,0,-3,0,0,0,-1,-3,-3,-2,-1],
-      [-1,-3,-1,-3,0,-2,0,0,-2,-1,100,-3,0,-2,300,-3,0,-2,-3,-2,0],
-      [-2,-3,-1,-3,-1,500,-1,-3,-2,-1,0,-1,0,-1,0,-1,0,-2,-3,-3,-1],
-      [0,-3,-1,-3,0,-2,-3,-3,0,0,0,0,-2,0,-2,-3,-3,-3,-3,200,-1],
-      [1200,-3,-1,-3,-1,-1,-2,-2,0,-1,150,-2,0,-2,0,0,-2,-3,-3,1500,50],
-    ]
-    map1 = [
-      [550,-1,-1,-2,-2,-2,-2,150,0,0,0,-3,-2,400,-3,650,-2,-1,0,0,0],
-      [350,-1,-1,-2,0,0,-2,-2,-2,-1,0,-3,-3,-2,300,-2,-1,650,-2,-1,0],
-      [-1,-1,450,-2,0,0,0,0,0,0,0,0,0,-3,-3,-3,-1,-1,-3,0,0],
-      [-1,-1,-2,-2,0,-3,-2,0,0,-3,-3,-3,0,0,0,0,0,0,-3,0,150],
-      [0,0,-2,0,-3,-3,-3,0,-1,-2,400,-3,-3,0,-2,0,-1,0,-3,0,0],
-      [0,200,-2,0,-3,250,-1,0,0,-1,-2,-3,-2,0,-1,300,-1,0,-3,-1,0],
-      [-3,-3,-2,0,-3,-3,-3,0,0,0,0,-3,-3,-3,-2,-2,-2,0,-2,-2,0],
-      [-1,-3,-2,0,0,-2,0,0,-3,-3,-3,-3,150,-3,0,0,0,0,-2,200,0],
-      [800,-3,-2,-3,450,-2,0,-3,-3,200,-1,250,-1,-3,0,-1,-1,0,0,0,0],
-    ]
-    map2 = [
-      [200,-2,-2,250,-2,0,-2,-1,0,-3,500,-3,-3,0,0,0,0,0,-3,450,-3],
-      [-2,-2,-1,-2,-1,0,-3,200,-2,0,-3,0,150,0,-2,-1,0,0,0,-3,0],
-      [-3,-2,-1,-3,-1,0,0,-3,-2,0,0,0,-1,-2,450,-2,0,-2,150,-2,0],
-      [300,-3,-3,300,-2,-2,-2,-2,300,-2,-2,0,0,0,-2,0,-3,-3,-3,-2,0],
-      [-3,-3,0,-3,-1,350,-1,0,-2,-2,350,-2,0,-3,0,0,-3,300,-3,-2,250],
-      [-3,0,0,0,-1,-1,-1,-1,-3,0,-2,0,-3,400,-3,0,-3,-3,-3,0,0],
-      [450,-3,0,0,0,0,-1,400,-3,0,0,0,-2,-3,-2,0,0,0,0,0,0],
-      [-3,0,-1,0,-1,0,-3,-3,-3,0,-1,0,0,0,250,-3,-3,-3,-1,-2,-2],
-      [0,0,-1,200,-1,-3,500,-3,0,-1,200,-1,0,0,-2,-2,-2,-1,400,-1,-2],
-    ]
-    map3 = [
-      [0,-1,0,0,0,0,0,-3,0,-1,0,-1,-3,150,500,200,-1,0,-2,-1,0],
-      [-3,500,-3,-2,350,-1,0,0,0,0,0,0,-1,-1,50,-1,0,0,-2,350,-3],
-      [-1,-3,-2,0,-1,-2,0,-1,0,0,0,0,0,0,-2,-1,0,0,-2,-1,-3],
-      [0,-3,0,0,0,0,-2,600,-3,0,0,-2,-2,0,-2,0,0,0,0,0,0],
-      [0,0,0,0,-1,-1,0,-3,0,-1,400,-3,-2,0,0,0,-1,-2,-1,-1,-1],
-      [-1,0,0,-1,-3,-3,-1,-1,0,0,-3,-2,0,0,0,0,-1,700,-1,-1,-3],
-      [350,-2,-1,-3,-2,-3,-3,-1,0,-3,0,0,0,0,-3,0,-1,-1,-1,-3,200],
-      [0,-1,-3,-2,250,-2,-3,-1,0,0,0,0,-2,0,0,0,0,-1,-3,300,0],
-      [0,-3,-2,300,1000,-2,-3,-1,0,-1,0,-2,100,-2,-1,0,-1,-3,400,0,800],
-    ]
-    map4 = [
-      [0,0,0,0,0,0,0,-2,0,0,0,0,-2,0,0,0,0,-1,-1,800,-1],
-      [100,-1,-3,-2,0,0,-1,200,-1,-2,250,-2,-2,250,-1,0,0,-1,-2,-1,-2],
-      [-1,700,-1,-3,150,-1,-1,-3,-3,-2,-2,-1,-3,-2,-1,0,0,-3,0,-1,0],
-      [0,-1,-3,0,-1,0,-3,-3,-1,-3,-1,600,-1,-3,-2,-1,-3,500,-1,0,0],
-      [0,-3,0,0,0,0,-2,-1,350,-1,50,-1,-3,50,0,0,0,-1,0,0,-2],
-      [0,0,0,-3,250,-3,-3,-3,-1,500,450,-1,-3,0,-1,0,0,0,0,-2,100],
-      [0,-3,0,0,-3,0,0,0,-3,-1,-1,-3,0,0,-2,300,-2,-1,0,0,-2],
-      [0,-1,-3,-2,0,0,0,-1,0,-3,-3,-3,-1,-2,-2,-1,-2,0,-1,0,0],
-      [-1,500,-1,-3,-2,0,-1,450,-1,0,0,-1,500,-1,-2,-1,-2,0,50,0,0],
-    ]
-    Maps = (map0,map1,map2,map3,map4)
-    return Maps
+Maps = [constants.maps[i] for i in range(1, 6)]
+env = MinerEnv() # Creating a communication environment between the DQN model and the game environment
+env.start() # Connect to the game
 
 
-game_over_reason = (
-    "playing",
-    "went_out_map",
-    "out_of_energy",
-    "invalid_action",
-    "no_more_gold",
-    "no_more_step",
-)
+# In[15]:
 
 
-# Parameters for training a DQN model
-N_EPISODES = 500
-MAX_STEP = 100   #The number of steps for each episode
-BATCH_SIZE = 32   #The number of experiences for each replay 
-MEMORY_SIZE = 100_000 #The size of the batch for storing experiences
-SAVE_NETWORK = 150  # After this number of episodes, the DQN model is saved for testing later. 
-INITIAL_REPLAY_SIZE = 1000 #The number of experiences are stored in the memory batch before starting replaying
-INPUT_DIMS = 198 #The number of input values for the DQN model
-N_ACTIONS = 6  #The number of actions output from the DQN model
-MAP_MAX_X = 21 #Width of the Map
-MAP_MAX_Y = 9  #Height of the Map
-Maps = CreateMaps()
-maps = [np.array(m) for m in Maps]
-HOST = "localhost"
-PORT = 1111
-minerEnv = MinerEnv(HOST, PORT)
-minerEnv.start()
+mapID = np.random.randint(0, 5)
+posID_x = np.random.randint(constants.width) 
+posID_y = np.random.randint(constants.height)
+request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
+env.send_map_info(request)
+#obs = env.reset()
+env.reset()
+obs = env.get_state()
+
+
+eliminated = []
+def pictorial_state(obs):
+    pictorial = np.zeros((constants.height, constants.width, 1+4), dtype=np.float32)
+    # 1+4 is +1 for map and +1 for each of the players = 5 channels
+    # dtype=np.float32 because pictorial will later be carried into tensorflow CNN
+    pictorial[..., 0] = obs[:constants.n_px].reshape((constants.height, constants.width))
+    # position of agent: we put the energy value at the coordinate where stands the agent, the whole in channel 1, the channel for the agent.
+    x_agent, y_agent = obs[constants.n_px], obs[constants.n_px+1]
+    if x_agent >= constants.width or y_agent >= constants.height:
+        pass
+    else:
+        pictorial[y_agent, x_agent, 1] = obs[constants.n_px+2]
+    # position of bots: we put -1 on the coord of the bots
+    for i in range(1, 3+1):
+        if i in eliminated:
+            continue
+        y = obs[constants.n_px+(2*i+2)]
+        x = obs[constants.n_px+(2*i+1)]
+        if x >= constants.width or y >= constants.height:
+            eliminated.append(i)
+            continue
+        pictorial[y, x, i+1] = -1
+    return pictorial
 
 
 
-def mapID_gen():
-    shuffled = np.arange(0,5)
-    np.random.shuffle(shuffled)
-    for i in range(len(shuffled)):
-        yield shuffled[i]
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 
 
-N_INPUT = 27
-N_ACTION = 5
-agent_BTC_hint = DQN(N_INPUT, N_ACTION)
-h5 = "TrainedModels/DQNmodel_20200821-0500_ep20000.h5"
-agent_BTC_hint.model.load_weights(h5)
-#DQNAgent.target_model.load_weights(h5)
+#tf.random.set_seed(42)
+np.random.seed(42)
+
+input_shape = [constants.height, constants.width, 1+4]
+n_outputs = 6
+
+model = keras.models.Sequential([
+    Conv2D(64, 3, activation="relu", padding="same", input_shape=input_shape),
+    #MaxPooling2D(2),
+    #Conv2D(128, 3, activation="relu", padding="same"),
+    #Conv2D(128, 3, activation="relu", padding="same"),
+    #MaxPooling2D(2),
+    Flatten(),
+    #Dense(128, activation="elu"),
+    Dense(128, activation="elu"),
+    Dense(128, activation="elu"),
+    Dense(64, activation="elu"),
+    Dense(n_outputs)
+])
 
 
-for mapID in mapID_gen():
-    try:
-        #mapID = np.random.randint(0, 5)
-        posID_x = np.random.randint(MAP_MAX_X) 
-        posID_y = np.random.randint(MAP_MAX_Y)
+max_replay_len = 2000
 
-        request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
-        minerEnv.send_map_info(request)
 
-        minerEnv.reset()
-        s = minerEnv.get_state()
-        terminate = False # This indicates whether the episode has ended
-        maxStep = minerEnv.state.mapInfo.maxStep
+from collections import deque
+replay_memory = deque(maxlen=max_replay_len)
 
-        for step in range(0, maxStep):
-            gold_here = minerEnv.state.mapInfo.gold_amount(minerEnv.state.x, minerEnv.state.y)
-            agent_energy = minerEnv.state.energy
-            if gold_here > 0:
-                if agent_energy <= 5:
-                    minerEnv.step(str(constants.rest))
-                else:
-                    minerEnv.step(str(constants.dig))
-            else:
-                #print(f"s.shape = {s.shape}")
-                a_max = np.argmax(agent_BTC_hint.model.predict(s[np.newaxis,...]))      
-                minerEnv.step(str(a_max))
-            s_next = minerEnv.get_state()
-            terminate = minerEnv.check_terminate()
-            s = s_next
-            
-            if terminate == True:
-                break
 
-        print('(mapID {:d})'.format(mapID+1))
-        print('(agent)   gold {: 5d}/{: 4d}   step {: 4d}   die of {}'.format(minerEnv.state.score, constants.gold_total(maps[mapID]), step+1, game_over_reason[minerEnv.state.status]))
-        print("(bot1)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[0].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[0].state.stepCount))
-        print("(bot2)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[1].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[1].state.stepCount))
-        print("(bot3)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[2].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[2].state.stepCount))
-        print()
+def sample_experiences(batch_size):
+    indices = np.random.randint(len(replay_memory), size=batch_size)
+    batch = [replay_memory[index] for index in indices]
+    states, actions, rewards, next_states, dones = [
+        np.array([experience[field_index] for experience in batch])
+        for field_index in range(5)]
+    return states, actions, rewards, next_states, dones
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()                
-        #print("Finished.")
-        break
+
+def epsilon_greedy_policy(state, epsilon=0, n_actions=6):
+    if np.random.rand() < epsilon:
+        return np.random.randint(n_actions)
+    else:
+        pictorial = pictorial_state(state)
+        Q_values = model.predict(pictorial[np.newaxis])
+        return np.argmax(Q_values[0])
+
+
+def play_one_step(env, state, epsilon):
+    action = epsilon_greedy_policy(state, epsilon)
+    #next_state, reward, done, info = env.step(action)
+    env.step(str(action))
+    next_state = env.get_state()
+    reward = env.get_reward()
+    done = env.check_terminate()
+    replay_memory.append((state, action, reward, next_state, done))
+    return next_state, reward, done
+
+
+batch_size = 32
+discount_rate = 0.95
+optimizer = keras.optimizers.Adam(lr=1e-3)
+loss_fn = keras.losses.mean_squared_error
+
+def training_step(batch_size):
+    experiences = sample_experiences(batch_size)
+    states, actions, rewards, next_states, dones = experiences
+    pictorials = np.array([pictorial_state(s) for s in states])
+    next_pictorials = np.array([pictorial_state(next_s) for next_s in next_states])
+    next_Q_values = model.predict(next_pictorials)
+    max_next_Q_values = np.max(next_Q_values, axis=1)
+    target_Q_values = rewards + (1 - dones) * discount_rate * max_next_Q_values
+    mask = tf.one_hot(actions, n_outputs)
+    with tf.GradientTape() as tape:
+        #all_Q_values = model(states)
+        all_Q_values = model(pictorials)
+        Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, keepdims=True)
+        loss = tf.reduce_mean(loss_fn(target_Q_values, Q_values))
+    grads = tape.gradient(loss, model.trainable_variables)
+    optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+
+
+#env.seed(42)
+np.random.seed(42)
+#tf.random.set_seed(42)
+
+scores = [] 
+best_score = 0
+
+
+n_episodes = 10_000
+n_epsilon_decay = int(n_episodes*.7)
+n_max_steps = 100
+
+for episode in range(n_episodes):
+    eliminated = []
+    mapID = np.random.randint(0, 5)
+    posID_x = np.random.randint(constants.width) 
+    posID_y = np.random.randint(constants.height)
+    request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
+    env.send_map_info(request)
+    #obs = env.reset()
+    env.reset()
+    obs = env.get_state()
+    sum_reward = 0
+    for step in range(n_max_steps):
+        epsilon = max(1 - episode / n_epsilon_decay, 0.01)
+        obs, reward, done = play_one_step(env, obs, epsilon)
+        sum_reward += reward
+        if done:
+            break
+    score = env.state.score*(n_max_steps - step)
+    #scores.append(score)
+    if score > best_score:
+        best_weights = model.get_weights()
+        best_score = reward
+    #print("\rEpisode: {}, Steps: {}, eps: {:.3f}".format(episode, step + 1, epsilon), end="")
+    #print("Episode: {: 5d}, Gold: {: 4d}, Steps: {: 3d}, eps: {:.3f}. ({})".format(episode, env.state.score, step + 1, epsilon, game_over_reason[env.state.status]), end="\n\n")
+    #print("(Episode: {: 5d})   Gold: {: 4d}, Steps: {: 3d}, eps: {:.3f}. ({})".format(episode, env.state.score, step + 1, epsilon, game_over_reason[env.state.status]))
+    print("(Episode {: 5d})   Gold: {: 4d}  sum_reward: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})".format(episode, env.state.score, sum_reward, step + 1, epsilon, constants.agent_state[env.state.status]))
+
+    
+    #if episode > 500:
+    if episode > 1000:
+        training_step(batch_size)
+
+model.set_weights(best_weights)
+
 
