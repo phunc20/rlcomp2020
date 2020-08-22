@@ -1092,9 +1092,10 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         score = env.state.score
         scores.append(score)
         if score > best_score:
-            best_weights = model.get_weights()
-            best_score = reward
-            model.save(f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5")
+            #best_weights = model.get_weights()
+            best_score = score
+            #model.save(f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5")
+            model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
         message = "(Episode {: 5d}/{})   Gold: {: 4d}  undiscounted_return: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
         print(message, end='')
