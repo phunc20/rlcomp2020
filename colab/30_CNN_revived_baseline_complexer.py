@@ -9,10 +9,6 @@ import math
 from random import randrange
 import random
 
-#from keras.models import Sequential
-#from keras.models import model_from_json
-#from keras.layers import Dense, Activation
-#from keras import optimizers
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import model_from_json
 from tensorflow.keras.layers import Dense, Activation
@@ -44,6 +40,11 @@ discount_rate = 0.95
 lr_optimizer = 2.5e-4
 loss_fn = keras.losses.mean_squared_error
 max_replay_len = 1_000_000
+#loaded_h5 = None
+loaded_h5 = "models/30_CNN_revived_baseline_complexer/episode-41157-gold-300-step-15-20200822-2348.h5"
+#epsilon_start = 1
+epsilon_start = 0.959
+best_score = 300
 
 
 #Classes in GAME_SOCKET_DUMMY.py
@@ -1057,8 +1058,9 @@ def training_step(batch_size):
 np.random.seed(42)
 tf.random.set_seed(42)
 
-scores = [] 
-best_score = 0
+scores = []
+if loaded_h5:
+    model = keras.models.load_model(loaded_h5)
 
 
 from constants import n_allowed_steps
@@ -1081,7 +1083,8 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         obs = env.get_state()
         undiscounted_return = 0
         for step in range(n_allowed_steps):
-            epsilon = max(1 - episode / n_epsilon_decay, 0.01)
+            #epsilon = max(1 - episode / n_epsilon_decay, 0.01)
+            epsilon = max(epsilon_start - episode / n_epsilon_decay, 0.01)
             obs, reward, done = play_one_step(env, obs, epsilon)
             undiscounted_return += reward
             if done:
