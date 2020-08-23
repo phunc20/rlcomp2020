@@ -1,0 +1,8 @@
+(Episode     1/100000)   Gold:    0  undiscounted_return:   -625   Steps:  12   eps: 1.000  (no_more_ENERGY)
+(Episode     2/100000)   Gold:    0  undiscounted_return:  -2056   Steps:  14   eps: 1.000  (out_of_MAP)
+(Episode     3/100000)   Gold:    0  undiscounted_return:   -652   Steps:  12   eps: 1.000  (no_more_ENERGY)
+(Episode     4/100000)   Gold:    0  undiscounted_return:   -617   Steps:   4   eps: 1.000  (no_more_ENERGY)
+(Episode     5/100000)   Gold:    0  undiscounted_return:   -622   Steps:  21   eps: 1.000  (no_more_ENERGY)
+(Episode     6/100000)   Gold:    0  undiscounted_return:  -2000   Steps:   1   eps: 1.000  (out_of_MAP)
+(Episode     7/100000)   Gold:   25  undiscounted_return:  -1975   Steps:   4   eps: 1.000  (out_of_MAP)
+(Episode     8/100000)   Gold:    0  undiscounted_return:   -547   Steps:  28   eps: 1.000  (no_more_ENERGY)
