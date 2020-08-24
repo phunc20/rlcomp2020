@@ -9,10 +9,6 @@ import math
 from random import randrange
 import random
 
-#from keras.models import Sequential
-#from keras.models import model_from_json
-#from keras.layers import Dense, Activation
-#from keras import optimizers
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import model_from_json
 from tensorflow.keras.layers import Dense, Activation
@@ -35,15 +31,21 @@ import non_RL_agent05
 import non_RL_agent06
 
 
-n_episodes = 50_000_000
-#n_epsilon_decay = int(n_episodes*.7)
-n_epsilon_decay = 10**6 / 0.99
-n_episodes_buf_fill = 10_000
+epsilon_start = 1
+n_episodes = 10_000
+n_epsilon_decay = int(n_episodes*.7)
+#n_epsilon_decay = int(n_episodes*.805)
+#n_epsilon_decay = 10**6 / 0.99
+#n_episodes_buf_fill = 5_000
+n_episodes_buf_fill = 500
 batch_size = 32
 discount_rate = 0.95
-lr_optimizer = 2.5e-4
-loss_fn = keras.losses.mean_squared_error
-max_replay_len = 1_000_000
+#lr_optimizer = 2.5e-4
+#lr_optimizer = 7.3e-4
+lr_optimizer = 2.5e-3
+#loss_fn = keras.losses.mean_squared_error
+loss_fn = keras.losses.Huber()
+max_replay_len = 1_000
 
 
 #Classes in GAME_SOCKET_DUMMY.py
@@ -904,12 +906,15 @@ class MinerEnv:
             #    reward += -5*(50 - self.state.stepCount)
             reward -= 2000
         else:
-            s = self.get_state()
-            #print(f"self.state.x, self.state.y = {self.state.x}, {self.state.y} ")
-            terrain_now = s[self.state.y, self.state.x, 0]
-            if terrain_now < 0 and self.state.lastAction != constants.rest:
-                # This substract the same amount of reward as energy when the agent steps into terrain_now, except for gold
-                reward += terrain_now
+            try:
+                s = self.get_state()
+                #print(f"self.state.x, self.state.y = {self.state.x}, {self.state.y} ")
+                terrain_now = s[self.state.y, self.state.x, 0]
+                if terrain_now < 0 and self.state.lastAction != constants.rest:
+                    # This substract the same amount of reward as energy when the agent steps into terrain_now, except for gold
+                    reward += terrain_now
+            except Exception:
+                pass
 
             
         #if self.state.status == State.STATUS_STOP_END_STEP:
@@ -979,21 +984,20 @@ input_shape = [constants.height, constants.width, 1+1]
 n_outputs = 6
 
 model = keras.models.Sequential([
-    Conv2D(8, 3, activation="relu", padding="same", input_shape=input_shape),
+    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
     #MaxPooling2D(2),
     Conv2D(8, 3, activation="relu", padding="same"),
-    #MaxPooling2D(2),
-    #Conv2D(128, 3, activation="relu", padding="same"),
     #Conv2D(128, 3, activation="relu", padding="same"),
     #MaxPooling2D(2),
     Flatten(),
     #Dense(128, activation="elu"),
     Dense(128, activation="elu"),
-    Dense(128, activation="elu"),
     Dense(64, activation="elu"),
+    Dense(32, activation="elu"),
     Dense(n_outputs)
 ])
-
+target = keras.models.clone_model(model)
+target.set_weights(model.get_weights())
 
 
 
@@ -1042,8 +1046,13 @@ def training_step(batch_size):
     #next_pictorials = np.array([pictorial_state(next_s) for next_s in next_states])
     #next_Q_values = model.predict(next_pictorials)
     next_Q_values = model.predict(next_states)
-    max_next_Q_values = np.max(next_Q_values, axis=1)
-    target_Q_values = rewards + (1 - dones) * discount_rate * max_next_Q_values
+    #max_next_Q_values = np.max(next_Q_values, axis=1)
+    best_next_actions = np.argmax(next_Q_values, axis=1)
+    next_mask = tf.one_hot(best_next_actions, n_outputs).numpy()
+    next_best_Q_values = (target.predict(next_states) * next_mask).sum(axis=1)
+    #target_Q_values = rewards + (1 - dones) * discount_rate * max_next_Q_values
+    target_Q_values = rewards + (1 - dones) * discount_rate * next_best_Q_values
+    target_Q_values = target_Q_values.reshape(-1, 1)
     mask = tf.one_hot(actions, n_outputs)
     with tf.GradientTape() as tape:
         #all_Q_values = model(pictorials)
@@ -1081,7 +1090,7 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         obs = env.get_state()
         undiscounted_return = 0
         for step in range(n_allowed_steps):
-            epsilon = max(1 - episode / n_epsilon_decay, 0.01)
+            epsilon = max(epsilon_start - episode / n_epsilon_decay, 0.01)
             obs, reward, done = play_one_step(env, obs, epsilon)
             undiscounted_return += reward
             if done:
@@ -1094,12 +1103,14 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             best_score = score
             model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        message = "(Episode {: 5d}/{})   Gold: {: 4d}  undiscounted_return: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
+        message = "(Episode {: 5d}/{})   Gold: {: 4d}  undiscounted_return: {: 6d}   Steps: {: 4d}   eps: {:.3f}  ({})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
         print(message, end='')
         log.write(message)
     
         #if episode > 500:
         if episode > n_episodes_buf_fill:
             training_step(batch_size)
+        if episode % n_episodes_buf_fill == 0:
+            target.set_weights(model.get_weights())
 
 np.save(f"scores-{now_str}", np.array(scores))

@@ -149,5 +149,6 @@ maps_ndarray = np.array([maps[i] for i in range(1,5+1)])
 
 
 def gold_total(map_):
-    #map_ = np.array(map_)
+    if not isinstance(map_, np.ndarray):
+        map_ = np.array(map_)
     return map_[map_ > 0].sum()
