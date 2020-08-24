@@ -33,7 +33,7 @@ class Map():
 
 
 class GoldMinerEnv(py_environment.PyEnvironment):
-    def __init__(self, map_id):
+    def __init__(self, map_id, discount=1.0):
         """
         args
             map_id, int
@@ -50,7 +50,7 @@ class GoldMinerEnv(py_environment.PyEnvironment):
         self._energy = constants.max_energy
         self._episode_ended = False
         self.bots = [Bot1(), Bot2(), Bot3()]
-
+        self.discount = discount
 
     def action_spec(self):
         return self._action_spec
