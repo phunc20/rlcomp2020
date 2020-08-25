@@ -793,8 +793,8 @@ class State:
             if player["playerId"] == self.id:
                 self.x = player["posx"]
                 self.y = player["posy"]
-                self.energy = player["energy"]
                 self.energy_pre = self.energy
+                self.energy = player["energy"]
                 self.score = player["score"]
                 self.lastAction = player["lastAction"]
                 self.status = player["status"]
