@@ -24,8 +24,8 @@ class TFAgentsMiner(pyenv.PyEnvironment):
         
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=5, name='action')
         #self._observation_spec = array_spec.BoundedArraySpec(shape=(width*5,height*5,6), dtype=np.float32, name='observation')
-        #self._observation_spec = array_spec.BoundedArraySpec(shape=(height, width, 2), dtype=np.float32, name='observation')
-        self._observation_spec = array_spec.BoundedArraySpec(shape=(height, width, 2), dtype=np.int32, name='observation')
+        self._observation_spec = array_spec.BoundedArraySpec(shape=(height, width, 2), dtype=np.float32, name='observation')
+        #self._observation_spec = array_spec.BoundedArraySpec(shape=(height, width, 2), dtype=np.int32, name='observation')
 
     def action_spec(self):
         return self._action_spec

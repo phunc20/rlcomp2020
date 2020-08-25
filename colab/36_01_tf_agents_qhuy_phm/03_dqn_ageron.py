@@ -1,9 +1,20 @@
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras as keras
 
 from tf_agents.environments import py_environment as pyenv, tf_py_environment, utils
 from tf_agents.specs import array_spec 
 from tf_agents.trajectories import time_step
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
+from tf_agents.networks.q_network import QNetwork
+from tf_agents.agents.dqn.dqn_agent import DqnAgent
+from tf_agents.replay_buffers import tf_uniform_replay_buffer
+from tf_agents.metrics import tf_metrics
+from tf_agents.eval.metric_utils import log_metrics
+from tf_agents.drivers.dynamic_step_driver import DynamicStepDriver
+from tf_agents.policies.random_tf_policy import RandomTFPolicy
+from tf_agents.utils.common import function
+import logging
 
 import os
 import sys
@@ -12,68 +23,122 @@ import constants
 from constants import width, height, agent_state_id2str
 
 from miner_env_9x21x2 import MinerEnv
+from tf_agents_miner import TFAgentsMiner
 
-class TFAgentsMiner(pyenv.PyEnvironment):
-    def __init__(self, host="localhost", port=1111, debug=False):
-        super(TFAgentsMiner, self).__init__()
 
-        self.env= MinerEnv(host, port)
-        #self.env= MinerEnv()
-        self.env.start()
-        self.debug = debug
-        
-        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=5, name='action')
-        #self._observation_spec = array_spec.BoundedArraySpec(shape=(width*5,height*5,6), dtype=np.float32, name='observation')
-        #self._observation_spec = array_spec.BoundedArraySpec(shape=(height, width, 2), dtype=np.float32, name='observation')
-        self._observation_spec = array_spec.BoundedArraySpec(shape=(height, width, 2), dtype=np.int32, name='observation')
+class ShowProgress:
+    def __init__(self, total):
+        self.counter = 0
+        self.total = total
+    def __call__(self, trajectory):
+        if not trajectory.is_boundary():
+            self.counter += 1
+        if self.counter % 100 == 0:
+            print("\r{}/{}".format(self.counter, self.total), end="")
 
-    def action_spec(self):
-        return self._action_spec
-
-    def observation_spec(self):
-        return self._observation_spec
-
-    def _reset(self):
-        mapID = np.random.randint(1, 6)
-        #mapID = np.random.randint(0, 5)
-        posID_x = np.random.randint(width)
-        posID_y = np.random.randint(height)
-        #request = ("map" + str(mapID) + "," + str(posID_x) + "," + str(posID_y) + ",50,100")
-        request = "map{},{},{},{},{}".format(mapID, posID_x, posID_y, constants.max_energy, constants.n_allowed_steps)
-        self.env.send_map_info(request)
-        self.env.reset()
-        observation = self.env.get_state()
-
-        return time_step.restart(observation)
-
-    def _log_info(self):
-        socket = self.env.socket
-
-        # print(f'Map size:{self.socket.user.max_x, self.env.state.mapInfo.max_y}')
-        #print(f"Self   - Pos ({socket.user.posx}, {socket.user.posy}) - Energy {socket.user.energy} - Status {socket.user.status}")
-        print(f"Self   - Pos ({socket.user.posx}, {socket.user.posy}) - Energy {socket.user.energy}  ({agent_state_id2str[socket.user.status]})")
-        for bot in socket.bots:
-            print(f"Enemy  - Pos ({bot.info.posx}, {bot.info.posy}) - Energy {bot.info.energy}  ({agent_state_id2str[bot.info.status]})")
-                
-    def _step(self, action):
-        if self.debug:
-            self._log_info()
-            
-        self.env.step(str(action))
-        observation = self.env.get_state()
-        reward = self.env.get_reward()
-
-        if not self.env.check_terminate():
-            return time_step.transition(observation, reward)
-        else:
-            self.reset()
-            return time_step.termination(observation, reward)
-
-    def render(self):
-        pass
 
 if __name__ == '__main__':
     #env = TFAgentsMiner("localhost", 1111)
-    env = TFAgentsMiner(debug=True)
-    utils.validate_py_environment(env, episodes=5)
+    #env = TFAgentsMiner(debug=True)
+    env = TFAgentsMiner()
+    #utils.validate_py_environment(env, episodes=5)
     tf_env = TFPyEnvironment(env)
+
+    ## Creating the Deep Q-Network
+    preprocessing_layer = keras.layers.Lambda(
+        lambda obs: tf.cast(obs, np.float32)/255.)
+    conv_layer_params = [(4,(3,3),1), (8,(3,3),1)]
+    fc_layer_params = [128, 64, 32]
+
+    q_net = QNetwork(
+        tf_env.observation_spec(),
+        tf_env.action_spec(),
+        conv_layer_params=conv_layer_params,
+        fc_layer_params=fc_layer_params,
+    )
+
+    ## Creating the DQN Agent
+    train_step = tf.Variable(0)
+    #update_period = 4 # run a training step every 4 collect steps
+    update_period = 100
+    #optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=2.5e-4, decay=0.95, momentum=0.0, epsilon=0.00001, centered=True)
+    optimizer = keras.optimizers.RMSprop(lr=2.5e-4, rho=0.95, momentum=0.0, epsilon=0.00001, centered=True)
+    epsilon_fn = keras.optimizers.schedules.PolynomialDecay(
+        initial_learning_rate=1.0, # initial ε
+        decay_steps=3_800_000,
+        end_learning_rate=0.01) # final ε
+    agent = DqnAgent(tf_env.time_step_spec(),
+                     tf_env.action_spec(),
+                     q_network=q_net,
+                     optimizer=optimizer,
+                     target_update_period=2000,
+                     td_errors_loss_fn=keras.losses.Huber(reduction="none"),
+                     gamma=0.99, # discount factor
+                     train_step_counter=train_step,
+                     epsilon_greedy=lambda: epsilon_fn(train_step),
+    )
+    agent.initialize()
+    #print(f"tf_env.batch_size = {tf_env.batch_size}")
+
+
+    ## Replay buffer and observer
+    replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+        data_spec=agent.collect_data_spec,
+        batch_size=tf_env.batch_size,
+        max_length=1_000_000)
+    
+    replay_buffer_observer = replay_buffer.add_batch
+
+    ## Training metrics
+    train_metrics = [
+        tf_metrics.NumberOfEpisodes(),
+        tf_metrics.EnvironmentSteps(),
+        tf_metrics.AverageReturnMetric(),
+        tf_metrics.AverageEpisodeLengthMetric(),
+    ]
+    logging.getLogger().setLevel(logging.INFO)
+    log_metrics(train_metrics)
+
+    ## Creating the collect driver
+    collect_driver = DynamicStepDriver(
+        tf_env,
+        agent.collect_policy,
+        observers=[replay_buffer_observer] + train_metrics,
+        num_steps=update_period,
+    )
+
+
+    initial_collect_policy = RandomTFPolicy(tf_env.time_step_spec(),
+                                            tf_env.action_spec())
+    init_driver = DynamicStepDriver(
+        tf_env,
+        initial_collect_policy,
+        observers=[replay_buffer.add_batch, ShowProgress(20000)],
+        num_steps=20000)
+    final_time_step, final_policy_state = init_driver.run()
+
+
+    ## Create dataset
+    dataset = replay_buffer.as_dataset(
+        sample_batch_size=64,
+        num_steps=2,
+        num_parallel_calls=3).prefetch(3)
+
+
+    collect_driver.run = function(collect_driver.run)
+    agent.train = function(agent.train)
+
+    def train_agent(n_iterations):
+        time_step = None
+        policy_state = agent.collect_policy.get_initial_state(tf_env.batch_size)
+        iterator = iter(dataset)
+        for iteration in range(n_iterations):
+            time_step, policy_state = collect_driver.run(time_step, policy_state)
+            trajectories, buffer_info = next(iterator)
+            train_loss = agent.train(trajectories)
+            print("\r{} loss:{:.5f}".format(
+                iteration, train_loss.loss.numpy()), end="")
+            if iteration % 1000 == 0:
+                log_metrics(train_metrics)
+
+    train_agent(n_iterations=50000)

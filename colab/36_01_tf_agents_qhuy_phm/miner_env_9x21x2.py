@@ -87,7 +87,8 @@ class MinerEnv:
         else:
             channel1[self.state.y, self.state.x] = self.state.energy
         state = np.stack((channel0, channel1), axis=-1)
-        return state.astype(np.int32)
+        #return state.astype(np.int32)
+        return state.astype(np.float32)
 
 
     def get_reward(self):
