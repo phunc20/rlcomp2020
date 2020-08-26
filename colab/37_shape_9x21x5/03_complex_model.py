@@ -1124,7 +1124,7 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         score = env.state.score
         scores.append(score)
         scores_k_most_recent.append(score)
-        score_avg = round(np.mean(scores_k_most_recent) / k, 1)
+        score_avg = round(np.mean(scores_k_most_recent), 1)
         scores_avg.append(score_avg)
         #if score > best_score:
         if score_avg > best_score_avg:
