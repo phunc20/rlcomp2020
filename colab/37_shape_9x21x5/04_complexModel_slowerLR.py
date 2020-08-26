@@ -1098,7 +1098,9 @@ scores_avg = []
 best_score = 0
 k = 10
 scores_k_most_recent = deque([0]*k)
-best_score_avg = 0
+#best_score_avg = 0
+# Put a strict best_score_avg to save less .h5 files
+best_score_avg = 800
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
     for episode in range(n_episodes):
         eliminated = []
@@ -1120,17 +1122,19 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         score = env.state.score
         scores.append(score)
         scores_k_most_recent.append(score)
-        score_avg = np.mean(scores_k_most_recent) / k
+        #score_avg = np.mean(scores_k_most_recent) / k
+        score_avg = round(np.mean(scores_k_most_recent) / k, 1)
         scores_avg.append(score_avg)
         #if score > best_score:
         if score_avg > best_score_avg:
             #best_weights = model.get_weights()
             best_score_avg = score_avg 
             #best_score = score
-            model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
+            #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
+            model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
-        #message = "(Episode {:}/{})   Gold {:}  avg {:}  undisc_return {:}   step {:}   eps: {:}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
+        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
+        message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
         print(message, end='')
         log.write(message)
     
@@ -1140,67 +1144,5 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         if episode % n_episodes_buf_fill == 0:
             target.set_weights(model.get_weights())
 
-np.save(f"scores-N-scores_avg-{now_str}", np.array([scores, scores_avg]))
+np.save(f"scores-N-scores_avg-{__file__.split('.')[0]}-{now_str}", np.array([scores, scores_avg]))
 #np.save(f"avg-{now_str}", np.array(scores))
-
-
-##################
-## Add pos bots ##
-##################
-
-eliminated = []
-def pictorial_state(obs):
-    pictorial = np.zeros((constants.height, constants.width, 1+4), dtype=np.float32)
-    # 1+4 is +1 for map and +1 for each of the players = 5 channels
-    # dtype=np.float32 because pictorial will later be carried into tensorflow CNN
-    pictorial[..., 0] = obs[:constants.n_px].reshape((constants.height, constants.width))
-    # position of agent: we put the energy value at the coordinate where stands the agent, the whole in channel 1, the channel for the agent.
-    x_agent, y_agent = obs[constants.n_px], obs[constants.n_px+1]
-    if x_agent >= constants.width or y_agent >= constants.height:
-        pass
-    else:
-        pictorial[y_agent, x_agent, 1] = obs[constants.n_px+2]
-    # position of bots: we put -1 on the coord of the bots
-    for i in range(1, 3+1):
-        if i in eliminated:
-            continue
-        y = obs[constants.n_px+(2*i+2)]
-        x = obs[constants.n_px+(2*i+1)]
-        if x >= constants.width or y >= constants.height:
-            eliminated.append(i)
-            continue
-        pictorial[y, x, i+1] = -1
-    return pictorial
-
-
-    # Functions are customized by client
-    def get_state(self):
-        # Building the map
-        #view = np.zeros([self.state.mapInfo.max_x + 1, self.state.mapInfo.max_y + 1], dtype=int)
-        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
-        for x in range(self.state.mapInfo.max_x + 1):
-            for y in range(self.state.mapInfo.max_y + 1):
-                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
-                    view[y, x] = -TreeID
-                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
-                    view[y, x] = -TrapID
-                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
-                    view[y, x] = -SwampID
-                if self.state.mapInfo.gold_amount(x, y) > 0:
-                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
-
-        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
-        
-        # Add position and energy of agent to the DQNState
-        DQNState.append(self.state.x)
-        DQNState.append(self.state.y)
-        DQNState.append(self.state.energy)
-        #Add position of bots 
-        for player in self.state.players:
-            if player["playerId"] != self.state.id:
-                DQNState.append(player["posx"])
-                DQNState.append(player["posy"])
-                
-        #Convert the DQNState from list to array for training
-        DQNState = np.array(DQNState)
-
