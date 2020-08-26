@@ -997,19 +997,21 @@ n_outputs = 6
 #    Dense(n_outputs)
 #])
 
-K = keras.backend
-input_states = keras.layers.Input(shape=input_shape)
-conv1 = Conv2D(4, 3, activation="relu", padding="same")(input_states)
-conv2 = Conv2D(8, 3, activation="relu", padding="same")(conv1)
-flat = Flatten()(conv2)
-fc1 = keras.layers.Dense(128, activation="elu")(flat)
-fc2 = keras.layers.Dense(64, activation="elu")(fc1)
-fc3 = keras.layers.Dense(32, activation="elu")(fc2)
-state_values = keras.layers.Dense(1)(fc3)
-raw_advantages = keras.layers.Dense(n_outputs)(fc3)
-advantages = raw_advantages - K.max(raw_advantages, axis=1, keepdims=True)
-Q_values = state_values + advantages
-model = keras.models.Model(inputs=[input_states], outputs=[Q_values])
+#K = keras.backend
+#input_states = keras.layers.Input(shape=input_shape)
+#conv1 = Conv2D(4, 3, activation="relu", padding="same")(input_states)
+#conv2 = Conv2D(8, 3, activation="relu", padding="same")(conv1)
+#flat = Flatten()(conv2)
+#fc1 = keras.layers.Dense(128, activation="elu")(flat)
+#fc2 = keras.layers.Dense(64, activation="elu")(fc1)
+#fc3 = keras.layers.Dense(32, activation="elu")(fc2)
+#state_values = keras.layers.Dense(1)(fc3)
+#raw_advantages = keras.layers.Dense(n_outputs)(fc3)
+#advantages = raw_advantages - K.max(raw_advantages, axis=1, keepdims=True)
+#Q_values = state_values + advantages
+#model = keras.models.Model(inputs=[input_states], outputs=[Q_values])
+h5 = "models/30_11_dDQN_light_100k_epochs/episode-78126-gold-1500-step-81-20200825-0033.h5"
+model = keras.models.load_model(h5)
 
 target = keras.models.clone_model(model)
 target.set_weights(model.get_weights())
