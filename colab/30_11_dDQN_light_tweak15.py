@@ -1,10 +1,7 @@
 ########################################
 # Changes compared to 30_05_CNN_revived_dDQN_light.py
-# 01. 
-#   n_epsilon_decay = int(n_episodes // 50)
-#   as opposed to
-#   n_epsilon_decay = int(n_episodes*.805)
-#   Takes around 9_900 to get from epsilon=1 to epsilon=0.01
+# 01. lr_optimizer = 2.5e-3 as opposed to lr_optimizer = 7.3e-4
+#     i.e. even faster learning rate
 # 02. longer
 #   n_episodes_buf_fill = 10_000
 #   as opposed to
@@ -44,16 +41,16 @@ import non_RL_agent04
 import non_RL_agent05
 import non_RL_agent06
 
+
 n_episodes = 500_000
-#n_epsilon_decay = int(n_episodes*.6)
-#n_epsilon_decay = int(n_episodes*.805)
+#n_epsilon_decay = int(n_episodes*.7)
+n_epsilon_decay = int(n_episodes*.805)
 #n_epsilon_decay = 10**6 / 0.99
-n_epsilon_decay = int(n_episodes // 50)
 n_episodes_buf_fill = 10_000
 batch_size = 32
 discount_rate = 0.95
-#lr_optimizer = 2.5e-4
-lr_optimizer = 7.3e-4
+lr_optimizer = 2.5e-3
+#lr_optimizer = 7.3e-4
 #loss_fn = keras.losses.mean_squared_error
 loss_fn = keras.losses.Huber()
 max_replay_len = 50_000

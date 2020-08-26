@@ -998,19 +998,21 @@ np.random.seed(42)
 input_shape = [constants.height, constants.width, 1+1]
 n_outputs = 6
 
-model = keras.models.Sequential([
-    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
-    #MaxPooling2D(2),
-    Conv2D(8, 3, activation="relu", padding="same"),
-    #Conv2D(128, 3, activation="relu", padding="same"),
-    #MaxPooling2D(2),
-    Flatten(),
-    #Dense(128, activation="elu"),
-    Dense(128, activation="elu"),
-    Dense(64, activation="elu"),
-    Dense(32, activation="elu"),
-    Dense(n_outputs)
-])
+#model = keras.models.Sequential([
+#    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
+#    #MaxPooling2D(2),
+#    Conv2D(8, 3, activation="relu", padding="same"),
+#    #Conv2D(128, 3, activation="relu", padding="same"),
+#    #MaxPooling2D(2),
+#    Flatten(),
+#    #Dense(128, activation="elu"),
+#    Dense(128, activation="elu"),
+#    Dense(64, activation="elu"),
+#    Dense(32, activation="elu"),
+#    Dense(n_outputs)
+#])
+h5 = "models/30_05_CNN_revived_dDQN_light/episode-379456-gold-2500-step-100-20200823-0011.h5"
+model = keras.models.load_model(h5)
 target = keras.models.clone_model(model)
 target.set_weights(model.get_weights())
 
@@ -1096,7 +1098,7 @@ scores_avg = []
 best_score = 0
 k = 10
 scores_k_most_recent = deque([0]*k)
-best_score_avg = 0
+best_score_avg = 800
 
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
     for episode in range(n_episodes):
@@ -1118,16 +1120,19 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         score = env.state.score
         scores.append(score)
         scores_k_most_recent.append(score)
-        score_avg = np.mean(scores_k_most_recent) / k
+        #score_avg = np.mean(scores_k_most_recent)
+        score_avg = round(np.mean(scores_k_most_recent), 1)
         scores_avg.append(score_avg)
         #if score > best_score:
         if score_avg > best_score_avg:
             #best_weights = model.get_weights()
             best_score_avg = score_avg 
             #best_score = score
-            model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
+            #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
+            model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
+        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
+        message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
         ##############################################
         #score = env.state.score*(n_allowed_steps - step)
         #score = env.state.score
@@ -1148,4 +1153,5 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             target.set_weights(model.get_weights())
 
 #np.save(f"scores-{now_str}", np.array(scores))
-np.save(f"scores-N-scores_avg-{now_str}", np.array([scores, scores_avg]))
+#np.save(f"scores-N-scores_avg-{now_str}", np.array([scores, scores_avg]))
+np.save(f"scores-N-scores_avg-{__file__.split('.')[0]}-{now_str}", np.array([scores, scores_avg]))
