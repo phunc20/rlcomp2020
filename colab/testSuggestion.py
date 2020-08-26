@@ -838,7 +838,7 @@ class MinerEnv:
             import traceback
             traceback.print_exc()
 
-    ## Functions are customized by client
+    # Functions are customized by client
     #def get_state(self):
     #    # Building the map
     #    #view = np.zeros([self.state.mapInfo.max_x + 1, self.state.mapInfo.max_y + 1], dtype=int)
@@ -1066,6 +1066,7 @@ bot2_final_score = 0
 bot3_final_score = 0
 h5 = "models/30_05_CNN_revived_dDQN_light/episode-315463-gold-1850-step-100-20200823-0011.h5"
 agent = keras.models.load_model(h5)
+
 for mapID in mapID_gen():
     try:
         #mapID = np.random.randint(0, 5)
@@ -1082,17 +1083,37 @@ for mapID in mapID_gen():
         #logging.debug(f"maxStep = {maxStep}")
         #print(f"maxStep = {maxStep}")
         for step in range(0, maxStep):
-            # non-RL
+            ## Non-RL
             #minerEnv.step(non_RL_agent.greedy_policy(s))
             #minerEnv.step(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
             #minerEnv.step(non_RL_agent04.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
             #minerEnv.step(non_RL_agent05.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
             #minerEnv.step(non_RL_agent05.greedy_policy(minerEnv))
             #minerEnv.step(non_RL_agent06.greedy_policy(s))
-            # RL
+            ## RL
             suggested_Qs = agent.predict(s[np.newaxis,...])[0]
-            a_max = np.argmax(suggested_Qs)
-            minerEnv.step(str(a_max))
+            #a_max = np.argmax(suggested_Qs)
+            #print(f"type(suggested_Qs) = {type(suggested_Qs)}")
+            #print(f"suggested_Qs.shape = {suggested_Qs.shape}")
+            #print(f"suggested_Qs = {suggested_Qs}")
+            #print(f"a_max = {a_max}")
+            suggested_action_ids = np.argsort(suggested_Qs)
+            x_agent = minerEnv.state.x
+            y_agent = minerEnv.state.y
+            pos_agent = np.array([x_agent, y_agent])
+            view = minerEnv.get_state()
+            while True:
+                # Don't want:
+                # 01) out of map
+                # 02) step into swamp -100
+                # 03) (optional) dig on non-gold
+                most_suggested_action_id = suggested_action_ids[-1]
+                most_suggested_mv = action_id2ndarray[most_suggested_action_id]
+                pos_mv = pos_agent + most_suggested_mv
+                x_mv, y_mv = pos_mv
+                if constants.out_of_map(pos_mv) or view[y_mv, x_mv]:
+                    suggested_action_ids = np.delete(suggested_action_ids, -1)
+            #minerEnv.step(str(a_max))
             s_next = minerEnv.get_state()
             terminate = minerEnv.check_terminate()
             s = s_next

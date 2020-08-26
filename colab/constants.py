@@ -29,6 +29,15 @@ right = 1
 rest = 4
 dig = 5
 
+action_id2str = {
+    up: "up",
+    down: "down",
+    left: "left",
+    right: "right",
+    rest: "rest",
+    dig: "dig",
+}
+
 available_actions = {
     "up": '2',
     "down": '3',
@@ -43,6 +52,12 @@ actionStr2ndarray = {
     "down": np.array([0, 1]),
     "left": np.array([-1, 0]),
     "right": np.array([1, 0]),
+    "rest": np.array([0, 0]),
+    "dig": np.array([0, 0]),
+}
+
+action_id2ndarray = {
+    id_: actionStr2ndarray[str_] for id_, str_ in action_id2str.items()
 }
 
 code2action = {value: key for key, value in available_actions.items()}
@@ -152,3 +167,15 @@ def gold_total(map_):
     if not isinstance(map_, np.ndarray):
         map_ = np.array(map_)
     return map_[map_ > 0].sum()
+
+def out_of_map(pos):
+    x = pos[0]
+    y = pos[1]
+    x_out = x < 0 or x >= width
+    y_out = y < 0 or y >= height
+    return x_out or y_out
+
+
+
+
+

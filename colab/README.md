@@ -16,3 +16,16 @@
 
 - <code>34_</code>: The same as <code>30_</code> but with <code>4</code> actions only
 - <code>35_</code>: The same as <code>30_</code> but with <code>5</code> actions only
+
+
+
+## About <code>30_11_dDQN_light_tweakxz.py</code> where <code>x</code> $\in [0..9]$, <code>z</code> $\in [1..5]$
+- <code>tweak01..05</code> are tweaks
+- <code>tweak11..15</code> are the same as <code>tweak01..05</code> except that <code>buf_fill</code> has been changed longer
+- <code>tweak21..25</code> are the same as <code>tweak01..05</code> except that <code>buf_fill</code> has been changed shorter
+- <code>tweak31..35</code> are the same as <code>tweak01..05</code> except that model has been made complexer
+- <code>tweak41..45</code> are the same as <code>tweak01..05</code> except that model has been made simpler
+
+
+
+
