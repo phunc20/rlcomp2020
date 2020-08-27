@@ -999,19 +999,19 @@ input_shape = [constants.height, constants.width, 1+4]
 #input_shape = [constants.height, constants.width, 1+1]
 n_outputs = 6
 
-model = keras.models.Sequential([
-    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
-    #MaxPooling2D(2),
-    Conv2D(8, 3, activation="relu", padding="same"),
-    #Conv2D(128, 3, activation="relu", padding="same"),
-    #MaxPooling2D(2),
-    Flatten(),
-    #Dense(128, activation="elu"),
-    Dense(128, activation="elu"),
-    Dense(64, activation="elu"),
-    Dense(32, activation="elu"),
-    Dense(n_outputs)
-])
+#model = keras.models.Sequential([
+#    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
+#    #MaxPooling2D(2),
+#    Conv2D(8, 3, activation="relu", padding="same"),
+#    #Conv2D(128, 3, activation="relu", padding="same"),
+#    #MaxPooling2D(2),
+#    Flatten(),
+#    #Dense(128, activation="elu"),
+#    Dense(128, activation="elu"),
+#    Dense(64, activation="elu"),
+#    Dense(32, activation="elu"),
+#    Dense(n_outputs)
+#])
 h5 = "models/02_channel234/episode-121344-gold-100-avg-0.92-step-16-20200826-0658.h5"
 model = keras.models.load_model(h5)
 target = keras.models.clone_model(model)
@@ -1098,9 +1098,9 @@ scores = []
 scores_avg = [] 
 best_score = 0
 k = 10
-scores_k_most_recent = deque([0]*k)
+scores_k_most_recent = deque([0]*k, maxlen=k)
 # Put a strict best_score_avg to save less .h5 files
-best_score_avg = 800
+best_score_avg = 1400
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
     for episode in range(n_episodes):
         eliminated = []

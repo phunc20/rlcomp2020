@@ -1,3 +1,12 @@
+########################################
+# Changes compared to 03_complex_model.py
+# 01. 
+#   n_epsilon_decay = int(n_episodes // 50)
+#   as opposed to
+#   n_epsilon_decay = int(n_episodes*.805)
+#   Takes around 9_900 to get from epsilon=1 to epsilon=0.01
+########################################
+
 import sys
 import numpy as np
 #import pandas as pd
@@ -34,13 +43,13 @@ import non_RL_agent06
 
 n_episodes = 500_000
 #n_epsilon_decay = int(n_episodes*.7)
-n_epsilon_decay = int(n_episodes*.805)
-#n_epsilon_decay = 10**6 / 0.99
+#n_epsilon_decay = int(n_episodes*.805)
+n_epsilon_decay = int(n_episodes // 50)
 n_episodes_buf_fill = 5_000
 batch_size = 32
 discount_rate = 0.95
-lr_optimizer = 2.5e-4
-#lr_optimizer = 7.3e-4
+#lr_optimizer = 2.5e-4
+lr_optimizer = 7.3e-4
 #loss_fn = keras.losses.mean_squared_error
 loss_fn = keras.losses.Huber()
 max_replay_len = 50_000
@@ -1013,6 +1022,8 @@ model = keras.models.Sequential([
     Dense(32, activation="elu"),
     Dense(n_outputs)
 ])
+#h5 = "models/02_channel234/episode-121344-gold-100-avg-0.92-step-16-20200826-0658.h5"
+#model = keras.models.load_model(h5)
 target = keras.models.clone_model(model)
 target.set_weights(model.get_weights())
 
@@ -1122,7 +1133,6 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         score = env.state.score
         scores.append(score)
         scores_k_most_recent.append(score)
-        #score_avg = np.mean(scores_k_most_recent)
         score_avg = round(np.mean(scores_k_most_recent), 1)
         scores_avg.append(score_avg)
         #if score > best_score:
@@ -1146,3 +1156,5 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
 
 np.save(f"scores-N-scores_avg-{__file__.split('.')[0]}-{now_str}", np.array([scores, scores_avg]))
 #np.save(f"avg-{now_str}", np.array(scores))
+
+

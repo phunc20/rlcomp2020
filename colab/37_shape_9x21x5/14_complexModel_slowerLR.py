@@ -1,3 +1,12 @@
+########################################
+# Changes compared to 04_complexModel_slowerLR.py
+# 01. 
+#   n_epsilon_decay = int(n_episodes // 50)
+#   as opposed to
+#   n_epsilon_decay = int(n_episodes*.805)
+#   Takes around 9_900 to get from epsilon=1 to epsilon=0.01
+########################################
+
 import sys
 import numpy as np
 #import pandas as pd
@@ -34,8 +43,8 @@ import non_RL_agent06
 
 n_episodes = 500_000
 #n_epsilon_decay = int(n_episodes*.7)
-n_epsilon_decay = int(n_episodes*.805)
-#n_epsilon_decay = 10**6 / 0.99
+#n_epsilon_decay = int(n_episodes*.805)
+n_epsilon_decay = int(n_episodes // 50)
 n_episodes_buf_fill = 5_000
 batch_size = 32
 discount_rate = 0.95

@@ -1,3 +1,12 @@
+########################################
+# Changes compared to 02_channel234.py
+# 01. 
+#   n_epsilon_decay = int(n_episodes // 50)
+#   as opposed to
+#   n_epsilon_decay = int(n_episodes*.805)
+#   Takes around 9_900 to get from epsilon=1 to epsilon=0.01
+########################################
+
 import sys
 import numpy as np
 #import pandas as pd
@@ -34,13 +43,14 @@ import non_RL_agent06
 
 n_episodes = 500_000
 #n_epsilon_decay = int(n_episodes*.7)
-n_epsilon_decay = int(n_episodes*.805)
+#n_epsilon_decay = int(n_episodes*.805)
 #n_epsilon_decay = 10**6 / 0.99
+n_epsilon_decay = int(n_episodes // 50)
 n_episodes_buf_fill = 5_000
 batch_size = 32
 discount_rate = 0.95
-lr_optimizer = 2.5e-4
-#lr_optimizer = 7.3e-4
+#lr_optimizer = 2.5e-4
+lr_optimizer = 7.3e-4
 #loss_fn = keras.losses.mean_squared_error
 loss_fn = keras.losses.Huber()
 max_replay_len = 50_000
@@ -999,20 +1009,21 @@ input_shape = [constants.height, constants.width, 1+4]
 #input_shape = [constants.height, constants.width, 1+1]
 n_outputs = 6
 
-model = keras.models.Sequential([
-    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
-    #MaxPooling2D(2),
-    Conv2D(8, 3, activation="relu", padding="same"),
-    Conv2D(8, 3, activation="relu", padding="same"),
-    #Conv2D(128, 3, activation="relu", padding="same"),
-    #MaxPooling2D(2),
-    Flatten(),
-    #Dense(128, activation="elu"),
-    Dense(128, activation="elu"),
-    Dense(64, activation="elu"),
-    Dense(32, activation="elu"),
-    Dense(n_outputs)
-])
+#model = keras.models.Sequential([
+#    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
+#    #MaxPooling2D(2),
+#    Conv2D(8, 3, activation="relu", padding="same"),
+#    #Conv2D(128, 3, activation="relu", padding="same"),
+#    #MaxPooling2D(2),
+#    Flatten(),
+#    #Dense(128, activation="elu"),
+#    Dense(128, activation="elu"),
+#    Dense(64, activation="elu"),
+#    Dense(32, activation="elu"),
+#    Dense(n_outputs)
+#])
+h5 = "models/02_channel234/episode-121344-gold-100-avg-0.92-step-16-20200826-0658.h5"
+model = keras.models.load_model(h5)
 target = keras.models.clone_model(model)
 target.set_weights(model.get_weights())
 
@@ -1098,7 +1109,6 @@ scores_avg = []
 best_score = 0
 k = 10
 scores_k_most_recent = deque([0]*k, maxlen=k)
-#best_score_avg = 0
 # Put a strict best_score_avg to save less .h5 files
 best_score_avg = 1400
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
@@ -1133,8 +1143,8 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
             model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
         message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
+        #message = "(Episode {:}/{})   Gold {:}  avg {:}  undisc_return {:}   step {:}   eps: {:}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
         print(message, end='')
         log.write(message)
     
@@ -1144,5 +1154,6 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         if episode % n_episodes_buf_fill == 0:
             target.set_weights(model.get_weights())
 
+#np.save(f"scores-N-scores_avg-{now_str}", np.array([scores, scores_avg]))
 np.save(f"scores-N-scores_avg-{__file__.split('.')[0]}-{now_str}", np.array([scores, scores_avg]))
 #np.save(f"avg-{now_str}", np.array(scores))

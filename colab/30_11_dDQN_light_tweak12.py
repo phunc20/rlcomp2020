@@ -1092,8 +1092,8 @@ scores = []
 scores_avg = [] 
 best_score = 0
 k = 10
-scores_k_most_recent = deque([0]*k)
-best_score_avg = 800
+scores_k_most_recent = deque([0]*k, maxlen=k)
+best_score_avg = 1400
 
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
     for episode in range(n_episodes):
