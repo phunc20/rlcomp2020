@@ -27,5 +27,6 @@
 - <code>tweak41..45</code> are the same as <code>tweak01..05</code> except that model has been made simpler
 
 
-
+## Nota Bene
+01. You could have used <code><b>logging</b></code> with option writing logs into a file, instead of using <code><b>with open()</b></code>.
 
