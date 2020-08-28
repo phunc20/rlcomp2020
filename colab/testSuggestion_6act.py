@@ -29,7 +29,7 @@ from tensorflow.compat.v1.keras import backend as K
 tf.disable_v2_behavior()
 
 import constants
-from constants import width, height, forest_energy, action_id2ndarray
+from constants import width, height, forest_energy, action_id2ndarray, action_id2str
 import non_RL_agent
 import non_RL_agent02
 import non_RL_agent03
@@ -1064,7 +1064,8 @@ final_score = 0
 bot1_final_score = 0
 bot2_final_score = 0
 bot3_final_score = 0
-h5 = "models/30_05_CNN_revived_dDQN_light/episode-315463-gold-1850-step-100-20200823-0011.h5"
+#h5 = "models/30_05_CNN_revived_dDQN_light/episode-315463-gold-1850-step-100-20200823-0011.h5"
+h5 = "models/30_05_CNN_revived_dDQN_light/episode-399443-gold-2600-step-100-20200823-0011.h5"
 agent = keras.models.load_model(h5)
 
 for mapID in mapID_gen():
@@ -1102,18 +1103,53 @@ for mapID in mapID_gen():
             y_agent = minerEnv.state.y
             pos_agent = np.array([x_agent, y_agent])
             view = minerEnv.get_state()
+            #adjusted_view = view.copy()
+            #adjusted_view[view > 0] = -4
             while True:
                 # Don't want:
                 # 01) out of map
                 # 02) step into swamp -100
                 # 03) (optional) dig on non-gold
+                # 04) (optional) take rest at full energy
+                if len(suggested_action_ids) == 0:
+                    most_suggested_action_id = np.random.randint(0,6)
+                    print("random step")
+                    break
                 most_suggested_action_id = suggested_action_ids[-1]
                 most_suggested_mv = action_id2ndarray[most_suggested_action_id]
                 pos_mv = pos_agent + most_suggested_mv
                 x_mv, y_mv = pos_mv
-                if constants.out_of_map(pos_mv) or view[y_mv, x_mv]:
-                    suggested_action_ids = np.delete(suggested_action_ids, -1)
+                energy_agent = minerEnv.state.energy
+                #if constants.out_of_map(pos_mv) or view[y_mv, x_mv, 0] <= -50:
+                if np.array_equal(most_suggested_mv, np.zeros((2,))):
+                    if view[y_agent, x_agent, 0] < 0 and most_suggested_action_id == constants.dig:
+                        suggested_action_ids = np.delete(suggested_action_ids, -1)
+                    elif most_suggested_action_id == constants.rest and energy_agent == constants.max_energy:
+                        suggested_action_ids = np.delete(suggested_action_ids, -1)
+                    else:
+                        #print(f"pos_agent = {pos_agent}")
+                        #print(f"energy_agent = {energy_agent}")
+                        #print(f"pos_mv = {pos_mv}")
+                        #print(f"view[y_mv, x_mv, 0] = {view[y_mv, x_mv, 0]}")
+                        #print(f"action = {action_id2str[most_suggested_action_id]}")
+                        break
+                else:
+                    #if constants.out_of_map(pos_mv) or energy_agent + view[y_mv, x_mv, 0] <= 0:
+                    #if constants.out_of_map(pos_mv) or energy_agent + adjusted_view[y_mv, x_mv, 0] <= 0:
+                    if view[y_mv, x_mv, 0] > 0 and energy_agent <= 4:
+                        suggested_action_ids = constants.rest
+                        break
+                    elif constants.out_of_map(pos_mv) or energy_agent + view[y_mv, x_mv, 0] <= 0:
+                        suggested_action_ids = np.delete(suggested_action_ids, -1)
+                    else:
+                        #print(f"pos_agent = {pos_agent}")
+                        #print(f"energy_agent = {energy_agent}")
+                        #print(f"pos_mv = {pos_mv}")
+                        #print(f"view[y_mv, x_mv, 0] = {view[y_mv, x_mv, 0]}")
+                        #print(f"action = {action_id2str[most_suggested_action_id]}")
+                        break
             #minerEnv.step(str(a_max))
+            minerEnv.step(str(most_suggested_action_id))
             s_next = minerEnv.get_state()
             terminate = minerEnv.check_terminate()
             s = s_next
@@ -1122,7 +1158,7 @@ for mapID in mapID_gen():
                 break
 
         print('(mapID {:d})'.format(mapID+1))
-        print('(agent)   gold {: 5d}/{: 4d}   step {: 4d}   die of {}'.format(minerEnv.state.score, constants.gold_total(maps[mapID]), step+1, game_over_reason[minerEnv.state.status]))
+        print('(agent)   gold {: 5d}/{: 4d}   step {: 4d}   energy {: 2d}   ({})'.format(minerEnv.state.score, constants.gold_total(maps[mapID]), step+1, minerEnv.state.energy, game_over_reason[minerEnv.state.status]))
         print("(bot1)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[0].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[0].state.stepCount))
         print("(bot2)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[1].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[1].state.stepCount))
         print("(bot3)    gold {: 5d}/{: 4d}   step {: 4d}".format(minerEnv.socket.bots[2].get_score(), constants.gold_total(maps[mapID]), minerEnv.socket.bots[2].state.stepCount))
