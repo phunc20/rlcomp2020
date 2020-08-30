@@ -195,10 +195,10 @@ class GameSocket:
                     self.energyOnMap[x][y] = ObstacleInfo.types[self.map[x][y]]
 
     def connect(self): # simulate player's connect request
-        print("Connected to server.")
+        #print("Connected to server.")
         for mapid in range(len(Maps)):
             filename = "map" + str(mapid)
-            print("Found: " + filename)
+            #print("Found: " + filename)
             self.maps[filename] = str(Maps[mapid])
 
     def map_info(self, map):  # get map info
@@ -1017,7 +1017,8 @@ scores = []
 bot1_scores = []
 bot2_scores = []
 bot3_scores = []
-for _ in range(n_games):
+for game in range(n_games):
+    print(f"(game {game})")
     score = 0
     bot1_score = 0
     bot2_score = 0

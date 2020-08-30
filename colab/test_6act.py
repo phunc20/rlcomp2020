@@ -1082,17 +1082,18 @@ for mapID in mapID_gen():
         #logging.debug(f"maxStep = {maxStep}")
         #print(f"maxStep = {maxStep}")
         for step in range(0, maxStep):
-            # non-RL
+            ## non-RL
             #minerEnv.step(non_RL_agent.greedy_policy(s))
             #minerEnv.step(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
             #minerEnv.step(non_RL_agent04.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
             #minerEnv.step(non_RL_agent05.greedy_policy(minerEnv, how_gold=non_RL_agent.find_worthiest_gold))
             #minerEnv.step(non_RL_agent05.greedy_policy(minerEnv))
-            #minerEnv.step(non_RL_agent06.greedy_policy(s))
-            # RL
-            suggested_Qs = agent.predict(s[np.newaxis,...])[0]
-            a_max = np.argmax(suggested_Qs)
-            minerEnv.step(str(a_max))
+            minerEnv.step(non_RL_agent06.greedy_policy(s))
+            ## RL
+            #suggested_Qs = agent.predict(s[np.newaxis,...])[0]
+            #a_max = np.argmax(suggested_Qs)
+            #minerEnv.step(str(a_max))
+
             s_next = minerEnv.get_state()
             terminate = minerEnv.check_terminate()
             s = s_next

@@ -1079,7 +1079,12 @@ bot2_final_score = 0
 bot3_final_score = 0
 #h5 = "models/30_05_CNN_revived_dDQN_light/episode-315463-gold-1850-step-100-20200823-0011.h5"
 #h5 = "models/30_05_CNN_revived_dDQN_light/episode-399443-gold-2600-step-100-20200823-0011.h5"
-h5 = "models/30_05_CNN_revived_dDQN_light/episode-399443-gold-2600-step-100-20200823-0011.h5"
+#h5 = "models/30_05_CNN_revived_dDQN_light/episode-399443-gold-2600-step-100-20200823-0011.h5"
+#h5 = "models/30_11_dDQN_light_tweak03/avg-1772.50-episode-30153-30_11_dDQN_light_tweak03-gold-2250-step-94-20200827-1713.h5"
+#h5 = "models/30_11_dDQN_light_tweak04/avg-1681.80-episode-35973-30_11_dDQN_light_tweak04-gold-1584-step-100-20200827-1713.h5"
+#h5 = "models/30_11_dDQN_light_tweak13/avg-1729.20-episode-24343-30_11_dDQN_light_tweak13-gold-1700-step-74-20200827-0903.h5"
+h5 = "models/30_11_dDQN_light_tweak14/avg-1785.00-episode-11155-30_11_dDQN_light_tweak14-gold-1800-step-100-20200827-0903.h5"
+
 agent = keras.models.load_model(h5)
 
 for mapID in mapID_gen():
@@ -1140,7 +1145,7 @@ for mapID in mapID_gen():
                     if most_suggested_action_id == constants.dig:
                         if view[y_agent, x_agent, 0] < 0:
                             suggested_action_ids = np.delete(suggested_action_ids, -1)
-                        elif energy_agent <= 5: # digging requires at least 5 energy
+                        elif energy_agent <= 5: # digging requires at least 5 energy:
                             most_suggested_action_id = constants.rest
                             break
                         else:
@@ -1157,10 +1162,12 @@ for mapID in mapID_gen():
                 else:
                     #if constants.out_of_map(pos_mv) or energy_agent + view[y_mv, x_mv, 0] <= 0:
                     #if constants.out_of_map(pos_mv) or energy_agent + adjusted_view[y_mv, x_mv, 0] <= 0:
-                    if view[y_mv, x_mv, 0] > 0 and energy_agent <= 4:
+                    if constants.out_of_map(pos_mv):
+                        suggested_action_ids = np.delete(suggested_action_ids, -1)
+                    elif view[y_mv, x_mv, 0] > 0 and energy_agent <= 4:
                         suggested_action_ids = constants.rest
                         break
-                    elif constants.out_of_map(pos_mv) or energy_agent + view[y_mv, x_mv, 0] <= 0:
+                    elif energy_agent + view[y_mv, x_mv, 0] <= 0:
                         suggested_action_ids = np.delete(suggested_action_ids, -1)
                     else:
                         #print(f"pos_agent = {pos_agent}")

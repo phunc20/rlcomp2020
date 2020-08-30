@@ -1157,11 +1157,11 @@ for mapID in mapID_gen():
                 else:
                     #if constants.out_of_map(pos_mv) or energy_agent + view[y_mv, x_mv, 0] <= 0:
                     #if constants.out_of_map(pos_mv) or energy_agent + adjusted_view[y_mv, x_mv, 0] <= 0:
-                    if view[y_mv, x_mv, 0] > 0 and energy_agent <= 4:
+                    if constants.out_of_map(pos_mv):
+                        suggested_action_ids = np.delete(suggested_action_ids, -1)
+                    elif view[y_mv, x_mv, 0] > 0 and energy_agent <= 4:
                         suggested_action_ids = constants.rest
                         break
-                    elif constants.out_of_map(pos_mv):
-                        suggested_action_ids = np.delete(suggested_action_ids, -1)
                     elif view[y_mv, x_mv, 0] <= -constants.max_energy:
                         suggested_action_ids = np.delete(suggested_action_ids, -1)
                     elif energy_agent + view[y_mv, x_mv, 0] <= 0:

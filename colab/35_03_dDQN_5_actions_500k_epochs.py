@@ -34,9 +34,11 @@ import non_RL_agent06
 epsilon_start = 1
 n_episodes = 500_000
 #n_epsilon_decay = int(n_episodes*.7)
-n_epsilon_decay = int(n_episodes*.805)
+#n_epsilon_decay = int(n_episodes*.805)
 #n_epsilon_decay = 10**6 / 0.99
-n_episodes_buf_fill = 5_000
+n_epsilon_decay = int(n_episodes // 50)
+#n_episodes_buf_fill = 5_000
+n_episodes_buf_fill = 10_000
 #n_episodes_buf_fill = 500
 batch_size = 32
 discount_rate = 0.95
@@ -50,7 +52,7 @@ max_replay_len = 50_000
 ## Neural Network parameters
 #input_shape = [constants.height, constants.width, 1+4]
 input_shape = [constants.height, constants.width, 1+1]
-n_outputs = 4
+n_outputs = 5
 
 #Classes in GAME_SOCKET_DUMMY.py
 class ObstacleInfo:
@@ -818,6 +820,7 @@ class MinerEnv:
         
         self.score_pre = self.state.score
         self.n_mines_visited = 0
+        self.earned_gold = 0
 
     def start(self): #connect to server
         self.socket.connect()
@@ -833,6 +836,14 @@ class MinerEnv:
             message = self.socket.receive() #receive game info from server
             self.state.init_state(message) #init state
             self.n_mines_visited = 0
+            self.earned_gold = 0
+            gold_here = self.state.mapInfo.gold_amount(self.state.x, self.state.y)
+            if gold_here > 0:
+                self.n_mines_visited += 1
+                self.earned_gold += gold_here
+                for g in self.socket.stepState.golds:
+                        if g.posx == self.state.x and g.posy == self.state.y:
+                            self.socket.stepState.golds.remove(g)
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -905,15 +916,17 @@ class MinerEnv:
         gold_here = self.state.mapInfo.gold_amount(self.state.x, self.state.y)
         #print(f"(x, y) = ({self.state.x}, {self.state.y}), gold_here = {gold_here}, energy = {self.state.energy}")
         #if terrain_now > 0:
-        if gold_here > 0:
+        #if gold_here > 0: # This Error! Reason: Death (-4) upon entering Gold/Mine.
+        if gold_here > 0 and self.state.status == constants.agent_state_str2id["PLAYing"]:
             # i.e. when we (agent) are standing on gold, i.e. when we finally arrive at gold
             #reward += terrain_now
             reward += gold_here
+            self.earned_gold += gold_here
+            self.n_mines_visited += 1
             # Remove gold_here (to push agent to find the next gold)
             for g in self.socket.stepState.golds:
                     if g.posx == self.state.x and g.posy == self.state.y:
                         self.socket.stepState.golds.remove(g)
-                        self.n_mines_visited += 1
         
 
         #if self.state.mapInfo.get_obstacle(self.state.x, self.state.y) == TreeID:  # Tree
@@ -929,7 +942,7 @@ class MinerEnv:
         if self.state.status == constants.agent_state_str2id["out_of_MAP"]:
             #if self.state.stepCount < 50:
             #    reward += -5*(50 - self.state.stepCount)
-            reward -= 2000
+            reward -= 1000
         else:
             try:
                 s = self.get_state()
@@ -1089,7 +1102,7 @@ np.random.seed(42)
 tf.random.set_seed(42)
 
 scores = [] 
-best_score = 0
+#best_score = 0
 
 
 from constants import n_allowed_steps
@@ -1100,35 +1113,54 @@ script_name = __file__.split('.')[0]
 save_path = os.path.join("models", script_name)
 os.makedirs(save_path, exist_ok=True)
 
+scores = [] 
+scores_avg = [] 
+#best_score = 0
+k = 10
+scores_k_most_recent = deque([0]*k, maxlen=k)
+best_score_avg = 2000
+
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
     for episode in range(n_episodes):
-        eliminated = []
         mapID = np.random.randint(0, 5)
         posID_x = np.random.randint(constants.width) 
         posID_y = np.random.randint(constants.height)
-        #request = "map{},{},{},{},100".format(mapID, posID_x, posID_y, constants.max_energy)
-        request = "map{},{},{},{},100".format(mapID, posID_x, posID_y, constants.max_energy)
+        request = "map{},{},{},{},{}".format(mapID, posID_x, posID_y, constants.max_energy, constants.n_allowed_steps)
         env.send_map_info(request)
         env.reset()
         obs = env.get_state()
         n_mines = (obs > 0).sum()
         undiscounted_return = 0
         for step in range(n_allowed_steps):
+            try:
+                print(f"terrain_now = {obs[env.state.y,env.state.x,0]}; pos = ({env.state.x}, {env.state.y})")
+            except IndexError:
+                pass
             epsilon = max(epsilon_start - episode / n_epsilon_decay, 0.01)
             obs, reward, done = play_one_step(env, obs, epsilon)
             undiscounted_return += reward
             if done:
                 break
     
-        remaining_gold = obs[obs > 0].sum()
+        #remaining_gold = obs[obs > 0].sum()
         total_gold = constants.gold_total(constants.maps[mapID+1])
-        score = env.n_mines_visited / n_mines
+        #earned_gold = total_gold - remaining_gold
+        #score = earned_gold
+        score = env.earned_gold
+        aux_score = env.n_mines_visited / n_mines
         scores.append(score)
-        if score > best_score:
-            best_score = score
-            model.save(os.path.join(save_path, f"episode-{episode+1}-visitRatio-{score}-step-{step+1}-{now_str}.h5"))
+        scores_k_most_recent.append(score)
+        #score_avg = np.mean(scores_k_most_recent)
+        score_avg = round(np.mean(scores_k_most_recent), 1)
+        scores_avg.append(score_avg)
+        #if score > best_score:
+        if score_avg > best_score_avg:
+            #best_score = score
+            best_score_avg = score_avg 
+            #model.save(os.path.join(save_path, f"episode-{episode+1}-visitRatio-{score}-step-{step+1}-{now_str}.h5"))
+            model.save(os.path.join(save_path, f"avgGold-{score_avg:06.1f}-episode-{episode+1}-{__file__.split('.')[0]}-visitRatio-{aux_score}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
 
-        message = "(Episode {: 5d}/{})  undisc_return: {: 6d}  steps: {: 3d}  eps: {:.3f}  visited: {: 2d}/{}  gold: {: 5d}/{}  mapID: {}  ({})\n".format(episode+1, n_episodes, undiscounted_return, step + 1, epsilon, env.n_mines_visited, n_mines, total_gold - remaining_gold, total_gold, mapID, constants.agent_state_id2str[env.state.status])
+        message = "(Episode {: 5d}/{})  undisc_return {: 6d}  steps {: 3d}  eps {:.3f}  visited {: 2d}/{}  gold {: 5d}/{}  avgG {: 5d}  mapID {}  ({})\n".format(episode+1, n_episodes, undiscounted_return, step + 1, epsilon, env.n_mines_visited, n_mines, env.earned_gold, total_gold, int(score_avg), mapID, constants.agent_state_id2str[env.state.status])
         print(message, end='')
         log.write(message)
     
@@ -1138,4 +1170,5 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         if episode % n_episodes_buf_fill == 0:
             target.set_weights(model.get_weights())
 
-np.save(f"scores-{now_str}", np.array(scores))
+#np.save(f"scores-{now_str}", np.array(scores))
+np.save(f"scores-N-scores_avg-{__file__.split('.')[0]}-{now_str}", np.array([scores, scores_avg]))

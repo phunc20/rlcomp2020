@@ -78,7 +78,7 @@ def exist_gold_3x3(view, pos_agent):
     return np.any(neighborhood_3x3 > 0)
 
 def find_densest_gold(s):
-    numerical_image = s[:n_px].reshape((height, width))
+    numerical_image = s[:n_px].reshape((height, width)) if s.ndim == 1 else s
     pos_agent = s[n_px:n_px+2]
     if exist_gold_3x3(numerical_image, pos_agent):
         return find_closest_gold(s)
@@ -160,7 +160,7 @@ def less_severe_index(terrains):
 
 def greedy_policy(s, how_gold=find_densest_gold):
     #imshow(prettier_render(s))
-    numerical_image = s[:n_px].reshape((height, width))
+    numerical_image = s[:n_px].reshape((height, width)) if s.ndim == 1 else s
     #pos_closest_gold = find_closest_gold(s)
     pos_closest_gold = how_gold(s)
     #print(f"pos_closest_gold = {pos_closest_gold}")
