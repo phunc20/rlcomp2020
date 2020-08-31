@@ -1,8 +1,0 @@
-tensorflow==1.14.0
-# There is tf.keras, so up to the user to decide whether they want to install keras
-#keras==2.3.1
-# Not so sure how torch==1.5.0 should be installed (The one on top or the one in the bottom)
-#pip install torch==1.5.0+cpu torchvision==0.6.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-torch==1.5.0
-numpy==1.18.4
-pandas=0.15.0
