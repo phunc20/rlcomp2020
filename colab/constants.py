@@ -29,6 +29,15 @@ right = 1
 rest = 4
 dig = 5
 
+reverse_action_id = {
+    up: down,
+    down: up,
+    left: right,
+    right: left,
+    rest: rest,
+    dig: dig,
+}
+
 action_id2str = {
     up: "up",
     down: "down",
@@ -55,6 +64,8 @@ actionStr2ndarray = {
     "rest": np.array([0, 0]),
     "dig": np.array([0, 0]),
 }
+
+action_str2ndarray = actionStr2ndarray 
 
 action_id2ndarray = {
     id_: actionStr2ndarray[str_] for id_, str_ in action_id2str.items()

@@ -13,8 +13,11 @@ from tf_agents.metrics import tf_metrics
 from tf_agents.eval.metric_utils import log_metrics
 from tf_agents.drivers.dynamic_step_driver import DynamicStepDriver
 from tf_agents.policies.random_tf_policy import RandomTFPolicy
-from tf_agents.utils.common import function
+from tf_agents.utils.common import function, Checkpointer
+
+from tf_agents.policies import policy_saver
 import logging
+import datetime
 
 import os
 import sys
@@ -59,13 +62,15 @@ if __name__ == '__main__':
 
     ## Creating the DQN Agent
     train_step = tf.Variable(0)
+    global_step = tf.compat.v1.train.get_or_create_global_step()
     #update_period = 4 # run a training step every 4 collect steps
     update_period = 100
     #optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=2.5e-4, decay=0.95, momentum=0.0, epsilon=0.00001, centered=True)
     optimizer = keras.optimizers.RMSprop(lr=2.5e-4, rho=0.95, momentum=0.0, epsilon=0.00001, centered=True)
     epsilon_fn = keras.optimizers.schedules.PolynomialDecay(
         initial_learning_rate=1.0, # initial ε
-        decay_steps=3_800_000,
+        #decay_steps=3_800_000,
+        decay_steps=380_000,
         end_learning_rate=0.01) # final ε
     agent = DqnAgent(tf_env.time_step_spec(),
                      tf_env.action_spec(),
@@ -74,7 +79,8 @@ if __name__ == '__main__':
                      target_update_period=2000,
                      td_errors_loss_fn=keras.losses.Huber(reduction="none"),
                      gamma=0.99, # discount factor
-                     train_step_counter=train_step,
+                     #train_step_counter=train_step,
+                     train_step_counter=global_step,
                      epsilon_greedy=lambda: epsilon_fn(train_step),
     )
     agent.initialize()
@@ -113,8 +119,8 @@ if __name__ == '__main__':
     init_driver = DynamicStepDriver(
         tf_env,
         initial_collect_policy,
-        observers=[replay_buffer.add_batch, ShowProgress(20000)],
-        num_steps=20000)
+        observers=[replay_buffer.add_batch, ShowProgress(10000)],
+        num_steps=10000)
     final_time_step, final_policy_state = init_driver.run()
 
 
@@ -128,6 +134,22 @@ if __name__ == '__main__':
     collect_driver.run = function(collect_driver.run)
     agent.train = function(agent.train)
 
+    now = datetime.datetime.now()
+    now_str = now.strftime("%Y%m%d-%H%M")
+    script_name = __file__.split('.')[0]
+    save_dir = os.path.join("models", script_name)
+    os.makedirs(save_dir, exist_ok=True)
+    #logging.basicConfig(filename=os.path.join(save_path, f"log-{now_str}.txt"),level=logging.DEBUG)
+    checkpoint_dir = os.path.join(save_dir, 'checkpoint')
+    train_checkpointer = Checkpointer(
+        ckpt_dir=checkpoint_dir,
+        max_to_keep=500,
+        agent=agent,
+        policy=agent.policy,
+        replay_buffer=replay_buffer,
+        global_step=global_step
+    )
+
     def train_agent(n_iterations):
         time_step = None
         policy_state = agent.collect_policy.get_initial_state(tf_env.batch_size)
@@ -138,7 +160,11 @@ if __name__ == '__main__':
             train_loss = agent.train(trajectories)
             print("\r{} loss:{:.5f}".format(
                 iteration, train_loss.loss.numpy()), end="")
-            if iteration % 1000 == 0:
+            if iteration % 100 == 0:
                 log_metrics(train_metrics)
+            # TODO: save checkpoints
+            if iteration >= 10_000 and iteration % 100 == 0:
+                train_checkpointer.save(global_step)
+                #model.save(os.path.join(save_path, f"avgGold-{score_avg:06.1f}-iter-{iteration+1}-{__file__.split('.')[0]}-visitRatio-{aux_score}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
 
-    train_agent(n_iterations=50000)
+    train_agent(n_iterations=500_000+1)
