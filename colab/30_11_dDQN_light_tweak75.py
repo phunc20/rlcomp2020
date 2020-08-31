@@ -995,21 +995,21 @@ np.random.seed(42)
 input_shape = [constants.height, constants.width, 1+1]
 n_outputs = 6
 
-#model = keras.models.Sequential([
-#    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
-#    #MaxPooling2D(2),
-#    Conv2D(8, 3, activation="relu", padding="same"),
-#    #Conv2D(128, 3, activation="relu", padding="same"),
-#    #MaxPooling2D(2),
-#    Flatten(),
-#    #Dense(128, activation="elu"),
-#    Dense(128, activation="elu"),
-#    Dense(64, activation="elu"),
-#    Dense(32, activation="elu"),
-#    Dense(n_outputs)
-#])
-h5 = "models/30_11_dDQN_light_tweak14/avg-1785.00-episode-11155-30_11_dDQN_light_tweak14-gold-1800-step-100-20200827-0903.h5"
-model = keras.models.load_model(h5)
+model = keras.models.Sequential([
+    Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
+    #MaxPooling2D(2),
+    Conv2D(8, 3, activation="relu", padding="same"),
+    #Conv2D(128, 3, activation="relu", padding="same"),
+    #MaxPooling2D(2),
+    Flatten(),
+    #Dense(128, activation="elu"),
+    Dense(128, activation="elu"),
+    Dense(64, activation="elu"),
+    Dense(32, activation="elu"),
+    Dense(n_outputs)
+])
+#h5 = "models/30_11_dDQN_light_tweak14/avg-1785.00-episode-11155-30_11_dDQN_light_tweak14-gold-1800-step-100-20200827-0903.h5"
+#model = keras.models.load_model(h5)
 target = keras.models.clone_model(model)
 target.set_weights(model.get_weights())
 
