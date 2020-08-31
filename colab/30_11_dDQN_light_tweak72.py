@@ -900,6 +900,8 @@ class MinerEnv:
         #elif self.state.status == constants.agent_state_str2id["no_more_STEP"]:
         #    #reward += (self.state.score/total_gold) * 100
         #    pass
+        elif self.state.status == constants.agent_state_str2id["no_more_ENERGY"]:
+            reward -= 300
         #elif self.state.status == constants.agent_state_str2id["no_more_GOLD"]:
         #    pass
         #elif self.state.status == constants.agent_state_str2id["INVALID_action"]:
@@ -935,9 +937,6 @@ class MinerEnv:
                         reward -= 100
                 if terrain_now < 0: # punish according to terrain_now
                     reward += terrain_now
-                    # if die because of this, punish more
-                    if self.state.status == constants.agent_state_str2id["no_more_ENERGY"]:
-                        reward -= 300
                     if terrain_now == -100: # i.e. fatal swamp
                         reward -= 500
             if self.state.lastAction == constants.rest:
