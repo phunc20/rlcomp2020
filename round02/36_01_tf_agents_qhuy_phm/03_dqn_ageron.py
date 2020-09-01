@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 
-from tf_agents.environments import py_environment as pyenv, tf_py_environment, utils
-from tf_agents.specs import array_spec 
+#from tf_agents.environments import py_environment as pyenv, tf_py_environment, utils
+#from tf_agents.specs import array_spec 
 from tf_agents.trajectories import time_step
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
 from tf_agents.networks.q_network import QNetwork
@@ -22,11 +22,11 @@ import datetime
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.pardir))
-import constants
-from constants import width, height, agent_state_id2str
+import constants02
+from constants02 import width, height, agent_state_id2str
 
-from miner_env_9x21x2 import MinerEnv
-from tf_agents_miner import TFAgentsMiner
+from miner_env import MinerEnv
+from tf_agents_miner_env import TFAgentsMiner
 
 
 class ShowProgress:

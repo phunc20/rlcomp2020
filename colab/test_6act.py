@@ -838,83 +838,83 @@ class MinerEnv:
             import traceback
             traceback.print_exc()
 
-    ## Functions are customized by client
-    #def get_state(self):
-    #    # Building the map
-    #    #view = np.zeros([self.state.mapInfo.max_x + 1, self.state.mapInfo.max_y + 1], dtype=int)
-    #    view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
-    #    for x in range(self.state.mapInfo.max_x + 1):
-    #        for y in range(self.state.mapInfo.max_y + 1):
-    #            if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
-    #                view[y, x] = -TreeID
-    #            if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
-    #                view[y, x] = -TrapID
-    #            if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
-    #                view[y, x] = -SwampID
-    #            if self.state.mapInfo.gold_amount(x, y) > 0:
-    #                view[y, x] = self.state.mapInfo.gold_amount(x, y)
-
-    #    DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
-    #    
-    #    # Add position and energy of agent to the DQNState
-    #    DQNState.append(self.state.x)
-    #    DQNState.append(self.state.y)
-    #    DQNState.append(self.state.energy)
-    #    #Add position of bots 
-    #    for player in self.state.players:
-    #        if player["playerId"] != self.state.id:
-    #            DQNState.append(player["posx"])
-    #            DQNState.append(player["posy"])
-    #            
-    #    #Convert the DQNState from list to array for training
-    #    DQNState = np.array(DQNState)
-
-    #    return DQNState
+    # Functions are customized by client
     def get_state(self):
-        """
-        Fuse `view` and `energyOnMap` into a single matrix to have a simple and concise state/observation.
-
-        We want a matrix showing the following:
-        `gold`: The amount of gold
-        `all the others`: The energy that each type of terrain is going to take if being stepped into, e.g.
-                          `land` => -1, `trap` => -10, etc.
-        """
-        #view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
-        view = (-9999) * np.ones((height, width), dtype=np.int32)
-        #for x in range(self.state.mapInfo.max_x + 1):
-        #    for y in range(self.state.mapInfo.max_y + 1):
-        for x in range(width):
-            for y in range(height):
-                #if self.state.mapInfo.get_obstacle(x, y) == TreeID:
-                #    view[y, x] = -TreeID
-                #if self.state.mapInfo.get_obstacle(x, y) == TrapID:
-                #    view[y, x] = -TrapID
-                #if self.state.mapInfo.get_obstacle(x, y) == SwampID:
-                #    view[y, x] = -SwampID
+        # Building the map
+        #view = np.zeros([self.state.mapInfo.max_x + 1, self.state.mapInfo.max_y + 1], dtype=int)
+        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+        for x in range(self.state.mapInfo.max_x + 1):
+            for y in range(self.state.mapInfo.max_y + 1):
+                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
+                    view[y, x] = -TreeID
+                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
+                    view[y, x] = -TrapID
+                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
+                    view[y, x] = -SwampID
                 if self.state.mapInfo.gold_amount(x, y) > 0:
                     view[y, x] = self.state.mapInfo.gold_amount(x, y)
-        energyOnMap = np.array(self.socket.energyOnMap)
 
-        ## `view` will contribute only to the type of terrain of `gold`
-        #view[view <= 0] = -9999 # Just a dummy large negative number to be got rid of later
-        # `energyOnMap` will contribute to the types of terrain of `land`, `trap`, `forest` and `swamp`.
-        # Recall. `forest` was designated by BTC to the value of 0, to mean random integer btw [5..20].
-        energyOnMap[energyOnMap == 0] = -forest_energy
-        channel0 = np.maximum(view, energyOnMap)
-        # Finish channel 0
-        # Channel 1 will contain the position of the agent
-        channel1 = np.zeros_like(channel0)
-        x_agent_out_of_map = self.state.x < 0 or self.state.x >= width
-        y_agent_out_of_map = self.state.y < 0 or self.state.y >= height
-        if x_agent_out_of_map or y_agent_out_of_map:
-            pass
-        else:
-            channel1[self.state.y, self.state.x] = self.state.energy
-        state = np.stack((channel0, channel1), axis=-1)
+        DQNState = view.flatten().tolist() #Flattening the map matrix to a vector
+        
+        # Add position and energy of agent to the DQNState
+        DQNState.append(self.state.x)
+        DQNState.append(self.state.y)
+        DQNState.append(self.state.energy)
+        #Add position of bots 
+        for player in self.state.players:
+            if player["playerId"] != self.state.id:
+                DQNState.append(player["posx"])
+                DQNState.append(player["posy"])
+                
+        #Convert the DQNState from list to array for training
+        DQNState = np.array(DQNState)
 
-        #return state.astype(np.int32)
-        #return state.astype(np.float32)
-        return state
+        return DQNState
+    #def get_state(self):
+    #    """
+    #    Fuse `view` and `energyOnMap` into a single matrix to have a simple and concise state/observation.
+
+    #    We want a matrix showing the following:
+    #    `gold`: The amount of gold
+    #    `all the others`: The energy that each type of terrain is going to take if being stepped into, e.g.
+    #                      `land` => -1, `trap` => -10, etc.
+    #    """
+    #    #view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+    #    view = (-9999) * np.ones((height, width), dtype=np.int32)
+    #    #for x in range(self.state.mapInfo.max_x + 1):
+    #    #    for y in range(self.state.mapInfo.max_y + 1):
+    #    for x in range(width):
+    #        for y in range(height):
+    #            #if self.state.mapInfo.get_obstacle(x, y) == TreeID:
+    #            #    view[y, x] = -TreeID
+    #            #if self.state.mapInfo.get_obstacle(x, y) == TrapID:
+    #            #    view[y, x] = -TrapID
+    #            #if self.state.mapInfo.get_obstacle(x, y) == SwampID:
+    #            #    view[y, x] = -SwampID
+    #            if self.state.mapInfo.gold_amount(x, y) > 0:
+    #                view[y, x] = self.state.mapInfo.gold_amount(x, y)
+    #    energyOnMap = np.array(self.socket.energyOnMap)
+
+    #    ## `view` will contribute only to the type of terrain of `gold`
+    #    #view[view <= 0] = -9999 # Just a dummy large negative number to be got rid of later
+    #    # `energyOnMap` will contribute to the types of terrain of `land`, `trap`, `forest` and `swamp`.
+    #    # Recall. `forest` was designated by BTC to the value of 0, to mean random integer btw [5..20].
+    #    energyOnMap[energyOnMap == 0] = -forest_energy
+    #    channel0 = np.maximum(view, energyOnMap)
+    #    # Finish channel 0
+    #    # Channel 1 will contain the position of the agent
+    #    channel1 = np.zeros_like(channel0)
+    #    x_agent_out_of_map = self.state.x < 0 or self.state.x >= width
+    #    y_agent_out_of_map = self.state.y < 0 or self.state.y >= height
+    #    if x_agent_out_of_map or y_agent_out_of_map:
+    #        pass
+    #    else:
+    #        channel1[self.state.y, self.state.x] = self.state.energy
+    #    state = np.stack((channel0, channel1), axis=-1)
+
+    #    #return state.astype(np.int32)
+    #    #return state.astype(np.float32)
+    #    return state
 
 
 

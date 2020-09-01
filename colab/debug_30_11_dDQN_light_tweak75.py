@@ -8,7 +8,7 @@
 #   max_replay_len = 30_000
 ########################################
 
-
+from constants import agent_state_id2str
 import sys
 import numpy as np
 #import pandas as pd
@@ -19,6 +19,7 @@ import os
 import math
 from random import randrange
 import random
+import matplotlib.pyplot as plt
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import model_from_json
@@ -307,7 +308,7 @@ class GameSocket:
             user.energy -= 10
             if user.energy <= 0:
                 user.status = PlayerInfo.STATUS_ELIMINATED_OUT_OF_ENERGY
-                user.lastAction = 6 #eliminated
+                #user.lastAction = 6 #eliminated
         else:
             user.energy -= 5
             if user.energy > 0:
@@ -320,14 +321,14 @@ class GameSocket:
                     self.craftMap[key] = 1
             else:
                 user.status = PlayerInfo.STATUS_ELIMINATED_OUT_OF_ENERGY
-                user.lastAction = 6 #eliminated
+                #user.lastAction = 6 #eliminated
 
     def action_0_left(self, user):  # user go left
         user.freeCount = 0
         user.posx = user.posx - 1
         if user.posx < 0:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -336,7 +337,7 @@ class GameSocket:
         user.posx = user.posx + 1
         if user.posx >= self.userMatch.gameinfo.width:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -345,7 +346,7 @@ class GameSocket:
         user.posy = user.posy - 1
         if user.posy < 0:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -354,7 +355,7 @@ class GameSocket:
         user.posy = user.posy + 1
         if user.posy >= self.userMatch.gameinfo.height:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -427,7 +428,7 @@ class GameSocket:
             user.energy -= 4
         if user.energy <= 0:
             user.status = PlayerInfo.STATUS_ELIMINATED_OUT_OF_ENERGY
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
 
     def add_changed_obstacle(self, x, y, t, v):
         added = False
@@ -493,7 +494,8 @@ class Bot1:
     def next_action(self):
         s = self.get_state()
         #return int(greedy_policy(s))
-        return int(non_RL_agent.greedy_policy(s))
+        #return int(non_RL_agent.greedy_policy(s))
+        return constants.down
 
     def get_score(self):
         return [player["score"] for player in minerEnv.socket.bots[1].state.players if player["playerId"] == self.info.playerId][0]
@@ -846,49 +848,7 @@ class MinerEnv:
         except Exception as e:
             import traceback
             traceback.print_exc()
-
-    def get_state(self):
-        """
-        Fuse `view` and `energyOnMap` into a single matrix to have a simple and concise state/observation.
-
-        We want a matrix showing the following:
-        `gold`: The amount of gold
-        `all the others`: The energy that each type of terrain is going to take if being stepped into, e.g.
-                          `land` => -1, `trap` => -10, etc.
-        """
-        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
-        for x in range(self.state.mapInfo.max_x + 1):
-            for y in range(self.state.mapInfo.max_y + 1):
-                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
-                    view[y, x] = -TreeID
-                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
-                    view[y, x] = -TrapID
-                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
-                    view[y, x] = -SwampID
-                if self.state.mapInfo.gold_amount(x, y) > 0:
-                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
-        energyOnMap = np.array(self.socket.energyOnMap)
-
-        # `view` will contribute only to the type of terrain of `gold`
-        view[view <= 0] = -9999 # Just a dummy large negative number to be got rid of later
-        # `energyOnMap` will contribute to the types of terrain of `land`, `trap`, `forest` and `swamp`.
-        # Recall. `forest` was designated by BTC to the value of 0, to mean random integer btw [5..20].
-        energyOnMap[energyOnMap == 0] = - constants.forest_energy
-        channel0 = np.maximum(view, energyOnMap)
-        # Finish channel 0
-        # Channel 1 will contain the position of the agent
-        channel1 = np.zeros_like(channel0)
-        x_agent_out_of_map = self.state.x < 0 or self.state.x >= constants.width
-        y_agent_out_of_map = self.state.y < 0 or self.state.y >= constants.height
-        if x_agent_out_of_map or y_agent_out_of_map:
-            pass
-        else:
-            channel1[self.state.y, self.state.x] = self.state.energy
-        state = np.stack((channel0, channel1), axis=-1)
-        return state
-
-
-    def get_reward(self):
+def get_reward(self):
         # Initialize reward
         reward = 0
         if self.state.status == constants.agent_state_str2id["out_of_MAP"]:
@@ -1018,6 +978,22 @@ def play_one_step(env, state, epsilon):
     #next_state, reward, done, info = env.step(action)
     env.step(str(action))
     next_state = env.get_state()
+    flattened_s = env.get_flattened_state()
+    pos_agent = flattened_s[21*9:21*9+2]
+    status_bots = [bot.info.status for bot in env.socket.bots]
+    energy_bots = [bot.info.energy for bot in env.socket.bots]
+    lastAction_bots = [bot.info.lastAction for bot in env.socket.bots]
+    pos_bots = flattened_s[21*9+3:].reshape((3,2))
+    #print(f"(action agent) = {constants.action_id2str[action]}")
+    #print(f"(agent) pos ({pos_agent[0]: 3d},{pos_agent[1]: 3d}) energy {env.state.energy: 3d}  {agent_state_id2str[env.state.status]}")
+    print(f"(agent) pos ({pos_agent[0]: 3d},{pos_agent[1]: 3d}) energy {env.state.energy: 3d}  {agent_state_id2str[env.state.status]}  {constants.action_id2str[action]}")
+
+    for i in range(3):
+        #print(f"(bot{i})  pos {pos_bots[i]} status {status_bots[i]}")
+        try:
+            print(f"(bot{i})  pos ({pos_bots[i][0]: 3d},{pos_bots[i][1]: 3d}) energy {energy_bots[i]: 3d}  {agent_state_id2str[status_bots[i]]}  {constants.action_id2str[lastAction_bots[i]]}")
+        except:
+            print(f"(bot{i})  pos ({pos_bots[i][0]: 3d},{pos_bots[i][1]: 3d}) energy {energy_bots[i]: 3d}  {agent_state_id2str[status_bots[i]]}")
     reward = env.get_reward()
     done = env.check_terminate()
     replay_memory.append((state, action, reward, next_state, done))
@@ -1082,11 +1058,31 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         env.reset()
         obs = env.get_state()
         undiscounted_return = 0
+        print(f"\n(episode {episode})")
         for step in range(n_allowed_steps):
+            print(f"step = {step}")
+            flattened_s = env.get_flattened_state()
+            pos_agent = flattened_s[21*9:21*9+2]
+            status_bots = [bot.info.status for bot in env.socket.bots]
+            energy_bots = [bot.info.energy for bot in env.socket.bots]
+            pos_bots = flattened_s[21*9+3:].reshape((3,2))
+            #print(f"(agent) pos ({pos_agent[0]: 3d},{pos_agent[1]: 3d}) energy {env.state.energy: 3d}  {agent_state_id2str[env.state.status]}")
+            #for i in range(3):
+            #    print(f"(bot{i})  pos ({pos_bots[i][0]: 3d},{pos_bots[i][1]: 3d}) energy {energy_bots[i]: 3d}  {agent_state_id2str[status_bots[i]]}")
             epsilon = max(1 - episode / n_epsilon_decay, 0.01)
             obs, reward, done = play_one_step(env, obs, epsilon)
+            ##input("Press ANY key to continue")
+            input()
             undiscounted_return += reward
             if done:
+                #flattened_s = env.get_flattened_state()
+                #pos_agent = flattened_s[21*9:21*9+2]
+                #status_bots = [bot.info.status for bot in env.socket.bots]
+                #energy_bots = [bot.info.energy for bot in env.socket.bots]
+                #pos_bots = flattened_s[21*9+3:].reshape((3,2))
+                #print(f"(agent) pos ({pos_agent[0]: 3d},{pos_agent[1]: 3d}) energy {env.state.energy: 3d}  {agent_state_id2str[env.state.status]}")
+                #for i in range(3):
+                #    print(f"(bot{i})  pos ({pos_bots[i][0]: 3d},{pos_bots[i][1]: 3d}) energy {energy_bots[i]: 3d}  {agent_state_id2str[status_bots[i]]}")
                 break
         score = env.state.score
         scores.append(score)
@@ -1095,27 +1091,16 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         score_avg = round(np.mean(scores_k_most_recent), 1)
         scores_avg.append(score_avg)
         #if score > best_score:
-        if score_avg > best_score_avg:
-            #best_weights = model.get_weights()
-            best_score_avg = score_avg 
-            #best_score = score
-            #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
-            model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
-    
-        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
-        message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
-        ##############################################
-        #score = env.state.score*(n_allowed_steps - step)
-        #score = env.state.score
-        #scores.append(score)
-        #if score > best_score:
+        #if score_avg > best_score_avg:
         #    #best_weights = model.get_weights()
-        #    best_score = score
-        #    model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
+        #    best_score_avg = score_avg 
+        #    #best_score = score
+        #    model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
+        #    #model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
         #message = "(Episode {: 5d}/{})   Gold: {: 4d}  undiscounted_return: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, constants.agent_state_id2str[env.state.status])
-        print(message, end='')
-        log.write(message)
+        #print(message, end='')
+        #log.write(message)
     
         #if episode > 500:
         if episode > n_episodes_buf_fill:
@@ -1125,4 +1110,4 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
 
 #np.save(f"scores-{now_str}", np.array(scores))
 #np.save(f"scores-N-scores_avg-{now_str}", np.array([scores, scores_avg]))
-np.save(f"scores-N-scores_avg-{__file__.split('.')[0]}-{now_str}", np.array([scores, scores_avg]))
+#np.save(f"scores-N-scores_avg-{__file__.split('.')[0]}-{now_str}", np.array([scores, scores_avg]))
