@@ -1064,8 +1064,8 @@ final_score = 0
 bot1_final_score = 0
 bot2_final_score = 0
 bot3_final_score = 0
-h5 = "models/30_05_CNN_revived_dDQN_light/episode-315463-gold-1850-step-100-20200823-0011.h5"
-agent = keras.models.load_model(h5)
+#h5 = "models/30_05_CNN_revived_dDQN_light/episode-315463-gold-1850-step-100-20200823-0011.h5"
+#agent = keras.models.load_model(h5)
 for mapID in mapID_gen():
     try:
         #mapID = np.random.randint(0, 5)

@@ -9,8 +9,6 @@ import sys
 import constants02
 from constants02 import terrain_ids, width, height, forest_energy
 
-
-
 class MinerEnv:
     def __init__(self, host="localhost", port=1111):
         self.socket = GameSocket(host, port)
@@ -45,6 +43,33 @@ class MinerEnv:
         except Exception as e:
             import traceback
             traceback.print_exc()
+
+    def get_198_state(self):
+        view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
+        for x in range(self.state.mapInfo.max_x + 1):
+            for y in range(self.state.mapInfo.max_y + 1):
+                if self.state.mapInfo.get_obstacle(x, y) == TreeID:  # Tree
+                    view[y, x] = -TreeID
+                if self.state.mapInfo.get_obstacle(x, y) == TrapID:  # Trap
+                    view[y, x] = -TrapID
+                if self.state.mapInfo.get_obstacle(x, y) == SwampID: # Swamp
+                    view[y, x] = -SwampID
+                if self.state.mapInfo.gold_amount(x, y) > 0:
+                    view[y, x] = self.state.mapInfo.gold_amount(x, y)
+
+        state = view.flatten().tolist()
+        # Add position and energy of agent
+        state.append(self.state.x)
+        state.append(self.state.y)
+        state.append(self.state.energy)
+        # Add position of bots 
+        for player in self.state.players:
+            if player["playerId"] != self.state.id:
+                state.append(player["posx"])
+                state.append(player["posy"])
+                
+        state = np.array(state)
+        return state
 
     def get_9x21x2_state(self):
         """
