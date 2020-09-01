@@ -64,7 +64,9 @@ class TFAgentsMiner(pyenv.PyEnvironment):
         #observation = self.env.get_state()
         observation = self.env.get_9x21x2_tf_agent_state()
         #reward = self.env.get_reward()
-        reward = self.env.get_deprecated_reward_01()
+        #reward = self.env.get_deprecated_reward_01()
+        #reward = self.env.get_reward_6act_20()
+        reward = self.env.get_reward_6act_21()
 
         if not self.env.check_terminate():
             return time_step.transition(observation, reward)

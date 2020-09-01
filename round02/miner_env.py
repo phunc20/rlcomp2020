@@ -183,6 +183,198 @@ class MinerEnv:
 
         return reward
 
+    def get_reward_6act_bug_01(self):
+        # Initialize reward
+        reward = 0
+        if self.state.status == constants02.agent_state_str2id["out_of_MAP"]:
+            #if self.state.stepCount < 50:
+            #    reward += -5*(50 - self.state.stepCount)
+            reward -= 1000
+        #elif self.state.status == constants02.agent_state_str2id["no_more_STEP"]:
+        #    #reward += (self.state.score/total_gold) * 100
+        #    pass
+        elif self.state.status == constants02.agent_state_str2id["no_more_ENERGY"]:
+            reward -= 300
+        #elif self.state.status == constants02.agent_state_str2id["no_more_GOLD"]:
+        #    pass
+        #elif self.state.status == constants02.agent_state_str2id["INVALID_action"]:
+        #    pass
+        else: # Here below: we are almost sure that agent is not out of map
+            s = self.get_9x21x2_state()
+            try:
+                terrain_now = s[self.state.y, self.state.x, 0]
+            except Exception as e:
+                print(f"{e}")
+                print(f"self.state.x, self.state.y = {self.state.x}, {self.state.y} ")
+                raise e
+            pos_now = np.array([self.state.x, self.state.y])
+            reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
+            pos_pre = pos_now + reverse_mv
+            x_pre, y_pre = pos_pre
+            terrain_pre = s[y_pre, x_pre, 0]
+
+            # Punish `dig on obstacle`
+            if self.state.lastAction == constants02.dig:
+                if terrain_now < 0:
+                    reward -= 100
+                elif terrain_now > 0:
+                    score_action = self.state.score - self.score_pre
+                    reward += score_action
+                    self.score_pre = self.state.score
+            if self.state.lastAction in (constants02.up, constants02.down, constants02.left, constants02.right,): # i.e. if agent moved
+                if terrain_pre > 100: # punish leaving gold
+                    reward -= terrain_pre
+                if terrain_now > 0: # entering gold
+                    if self.state.energy > constants02.punishments["gold"]:
+                        reward += 50
+                    else:
+                        reward -= 100
+                if terrain_now < 0: # punish according to terrain_now
+                    reward += terrain_now
+                    if terrain_now == -100: # i.e. fatal swamp
+                        reward -= 500
+            if self.state.lastAction == constants02.rest:
+                if self.state.energy_pre >= 40:
+                    reward -= 200
+                if self.state.energy_pre <= 5:
+                    reward += 20
+            if self.state.status == constants02.agent_state_str2id["PLAYing"]:
+                reward += 1
+
+        return reward
+
+    def get_reward_6act_20(self):
+        # Initialize reward
+        reward = 0
+        s = self.get_9x21x2_state()
+        try:
+            terrain_now = s[self.state.y, self.state.x, 0]
+            pos_now = np.array([self.state.x, self.state.y])
+            reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
+            pos_pre = pos_now + reverse_mv
+            x_pre, y_pre = pos_pre
+            terrain_pre = s[y_pre, x_pre, 0]
+
+            # Punish `dig on obstacle`
+            if self.state.lastAction == constants02.dig:
+                if terrain_now < 0:
+                    reward -= 100
+                elif terrain_now > 0:
+                    score_action = self.state.score - self.score_pre
+                    reward += score_action
+                    self.score_pre = self.state.score
+            if self.state.lastAction in (constants02.up, constants02.down, constants02.left, constants02.right,): # i.e. if agent moved
+                if terrain_pre > 100: # punish leaving gold
+                    reward -= terrain_pre
+                if terrain_now > 0: # entering gold
+                    if self.state.energy > constants02.punishments["gold"]:
+                        reward += 50
+                    else:
+                        reward -= 100
+                if terrain_now < 0: # punish according to terrain_now
+                    reward += terrain_now
+                    if terrain_now == -100: # i.e. fatal swamp
+                        reward -= 500
+            if self.state.lastAction == constants02.rest:
+                if self.state.energy_pre >= 40:
+                    reward -= 200
+                if self.state.energy_pre <= 5:
+                    reward += 20
+        except Exception as e:
+            print(f"{e}")
+            print(f"status = {constants02.agent_state_id2str[self.state.status]}")
+            print(f"lastAction = {self.state.lastAction}")
+            print(f"(x, y) = ({self.state.x}, {self.state.y}) ")
+            #raise e
+        finally:
+            if self.state.status == constants02.agent_state_str2id["PLAYing"]:
+                reward += 1
+            elif self.state.status == constants02.agent_state_str2id["out_of_MAP"]:
+                #if self.state.stepCount < 50:
+                #    reward += -5*(50 - self.state.stepCount)
+                reward -= 1000
+            elif self.state.status == constants02.agent_state_str2id["no_more_ENERGY"]:
+                reward -= 300
+            #elif self.state.status == constants02.agent_state_str2id["no_more_STEP"]:
+            #    #reward += (self.state.score/total_gold) * 100
+            #    pass
+            #elif self.state.status == constants02.agent_state_str2id["no_more_GOLD"]:
+            #    pass
+            #elif self.state.status == constants02.agent_state_str2id["INVALID_action"]:
+            #    pass
+        return reward
+
+    def get_reward_6act_21(self):
+        # Initialize reward
+        reward = 0
+        s = self.get_9x21x2_state()
+        pos_now = np.array([self.state.x, self.state.y])
+        reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
+        pos_pre = pos_now + reverse_mv
+        x_pre, y_pre = pos_pre
+        terrain_pre = s[y_pre, x_pre, 0]
+        if self.state.status == constants02.agent_state_str2id["out_of_MAP"]:
+            #if self.state.stepCount < 50:
+            #    reward += -5*(50 - self.state.stepCount)
+            reward -= 1000
+            if terrain_pre > 100: # punish leaving gold
+                reward -= terrain_pre
+        else:
+            try:
+                terrain_now = s[self.state.y, self.state.x, 0]
+                pos_now = np.array([self.state.x, self.state.y])
+                reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
+                pos_pre = pos_now + reverse_mv
+                x_pre, y_pre = pos_pre
+                terrain_pre = s[y_pre, x_pre, 0]
+
+                # Punish `dig on obstacle`
+                if self.state.lastAction == constants02.dig:
+                    if terrain_now < 0:
+                        reward -= 100
+                    elif terrain_now > 0:
+                        score_action = self.state.score - self.score_pre
+                        reward += score_action
+                        self.score_pre = self.state.score
+                if self.state.lastAction in (constants02.up, constants02.down, constants02.left, constants02.right,): # i.e. if agent moved
+                    if terrain_pre > 100: # punish leaving gold
+                        reward -= terrain_pre
+                    if terrain_now > 0: # entering gold
+                        if self.state.energy > constants02.punishments["gold"]:
+                            reward += 50
+                        else:
+                            reward -= 100
+                    if terrain_now < 0: # punish according to terrain_now
+                        reward += terrain_now
+                        if terrain_now == -100: # i.e. fatal swamp
+                            reward -= 500
+                if self.state.lastAction == constants02.rest:
+                    if self.state.energy_pre >= 40:
+                        reward -= 200
+                    if self.state.energy_pre <= 5:
+                        reward += 20
+            except Exception as e:
+                print(f"{e}")
+                print(f"step = {self.state.stepCount}")
+                print(f"status = {constants02.agent_state_id2str[self.state.status]}")
+                print(f"lastAction = {constants02.action_id2str[self.state.lastAction]}")
+                print(f"(x, y) = ({self.state.x}, {self.state.y}) ")
+                #raise e
+            finally:
+                if self.state.status == constants02.agent_state_str2id["PLAYing"]:
+                    reward += 1
+                elif self.state.status == constants02.agent_state_str2id["no_more_ENERGY"]:
+                    reward -= 300
+                #elif self.state.status == constants02.agent_state_str2id["no_more_STEP"]:
+                #    #reward += (self.state.score/total_gold) * 100
+                #    pass
+                #elif self.state.status == constants02.agent_state_str2id["no_more_GOLD"]:
+                #    pass
+                #elif self.state.status == constants02.agent_state_str2id["INVALID_action"]:
+                #    pass
+        return reward
+
+
     def check_terminate(self):
         #Checking the status of the game
         #it indicates the game ends or is playing

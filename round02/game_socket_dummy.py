@@ -262,7 +262,7 @@ class GameSocket:
             user.energy -= 10
             if user.energy <= 0:
                 user.status = PlayerInfo.STATUS_ELIMINATED_OUT_OF_ENERGY
-                user.lastAction = 6 #eliminated
+                #user.lastAction = 6 #eliminated
         else:
             user.energy -= 5
             if user.energy > 0:
@@ -275,14 +275,14 @@ class GameSocket:
                     self.craftMap[key] = 1
             else:
                 user.status = PlayerInfo.STATUS_ELIMINATED_OUT_OF_ENERGY
-                user.lastAction = 6 #eliminated
+                #user.lastAction = 6 #eliminated
 
     def action_0_left(self, user):  # user go left
         user.freeCount = 0
         user.posx = user.posx - 1
         if user.posx < 0:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -291,7 +291,7 @@ class GameSocket:
         user.posx = user.posx + 1
         if user.posx >= self.userMatch.gameinfo.width:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -300,7 +300,7 @@ class GameSocket:
         user.posy = user.posy - 1
         if user.posy < 0:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -309,7 +309,7 @@ class GameSocket:
         user.posy = user.posy + 1
         if user.posy >= self.userMatch.gameinfo.height:
             user.status = PlayerInfo.STATUS_ELIMINATED_WENT_OUT_MAP
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
         else:
             self.go_to_pos(user)
 
@@ -382,7 +382,7 @@ class GameSocket:
             user.energy -= 4
         if user.energy <= 0:
             user.status = PlayerInfo.STATUS_ELIMINATED_OUT_OF_ENERGY
-            user.lastAction = 6 #eliminated
+            #user.lastAction = 6 #eliminated
 
     def add_changed_obstacle(self, x, y, t, v):
         added = False
