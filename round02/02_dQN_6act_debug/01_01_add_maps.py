@@ -198,31 +198,24 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             if done:
                 break
         score = env.state.score
-        scores.append(score)
-        scores_k_most_recent.append(score)
-        #score_avg = np.mean(scores_k_most_recent)
-        score_avg = round(np.mean(scores_k_most_recent), 1)
-        scores_avg.append(score_avg)
-        #if score > best_score:
-        if score_avg > best_score_avg:
-            #best_weights = model.get_weights()
-            best_score_avg = score_avg 
-            #best_score = score
-            #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
-            model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
+        if mapID <= 5:
+            scores.append(score)
+            scores_k_most_recent.append(score)
+            #score_avg = np.mean(scores_k_most_recent)
+            score_avg = round(np.mean(scores_k_most_recent), 1)
+            scores_avg.append(score_avg)
+            #if score > best_score:
+            if score_avg > best_score_avg:
+                #best_weights = model.get_weights()
+                best_score_avg = score_avg 
+                #best_score = score
+                #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
+                model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
-        message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  (map {}: {})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, mapID, constants02.agent_state_id2str[env.state.status])
-        ##############################################
-        #score = env.state.score*(n_allowed_steps - step)
-        #score = env.state.score
-        #scores.append(score)
-        #if score > best_score:
-        #    #best_weights = model.get_weights()
-        #    best_score = score
-        #    model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
-    
-        #message = "(Episode {: 5d}/{})   Gold: {: 4d}  undiscounted_return: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
+            #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
+            message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  (map {}: {})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, mapID, constants02.agent_state_id2str[env.state.status])
+        else:
+            message = "(Episode {: 5d}/{})   Gold {: 4d}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  (map {}: {})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, mapID, constants02.agent_state_id2str[env.state.status])
         print(message, end='')
         log.write(message)
     
