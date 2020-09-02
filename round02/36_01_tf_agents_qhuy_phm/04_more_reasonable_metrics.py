@@ -1,8 +1,3 @@
-replay_buffer_capacity = 50_000
-
-
-
-
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
@@ -69,12 +64,14 @@ if __name__ == '__main__':
     ## Creating the DQN Agent
     train_step = tf.Variable(0)
     global_step = tf.compat.v1.train.get_or_create_global_step()
-    #update_period = 4 # run a training step every 4 collect steps
-    update_period = 100
+    # TODO
+    update_period = 4 # run a training step every 4 collect steps
+    #update_period = 100
     #optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=2.5e-4, decay=0.95, momentum=0.0, epsilon=0.00001, centered=True)
     optimizer = keras.optimizers.RMSprop(lr=2.5e-4, rho=0.95, momentum=0.0, epsilon=0.00001, centered=True)
     epsilon_fn = keras.optimizers.schedules.PolynomialDecay(
         initial_learning_rate=1.0, # initial ε
+        # TODO
         #decay_steps=3_800_000,
         decay_steps=380_000,
         end_learning_rate=0.01) # final ε
@@ -82,9 +79,11 @@ if __name__ == '__main__':
                      tf_env.action_spec(),
                      q_network=q_net,
                      optimizer=optimizer,
+                    # TODO
                      target_update_period=2000,
                      td_errors_loss_fn=keras.losses.Huber(reduction="none"),
-                     gamma=0.99, # discount factor
+                     #gamma=0.99, # discount factor
+                     gamma=0.95, # discount factor
                      #train_step_counter=train_step,
                      train_step_counter=global_step,
                      epsilon_greedy=lambda: epsilon_fn(train_step),
@@ -97,7 +96,9 @@ if __name__ == '__main__':
     replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=agent.collect_data_spec,
         batch_size=tf_env.batch_size,
-        max_length=replay_buffer_capacity)
+        #max_length=1_000_000,
+        max_length=50_000,
+    )
     
     replay_buffer_observer = replay_buffer.add_batch
 
@@ -112,32 +113,32 @@ if __name__ == '__main__':
     log_metrics(train_metrics)
 
     ## Creating the collect driver
-    collect_driver = DynamicStepDriver(
-        tf_env,
-        agent.collect_policy,
-        observers=[replay_buffer_observer] + train_metrics,
-        num_steps=update_period,
-    )
-    #collect_driver = DynamicEpisodeDriver(
+    #collect_driver = DynamicStepDriver(
     #    tf_env,
     #    agent.collect_policy,
     #    observers=[replay_buffer_observer] + train_metrics,
-    #    num_episodes=update_period,
+    #    num_steps=update_period,
     #)
+    collect_driver = DynamicEpisodeDriver(
+        tf_env,
+        agent.collect_policy,
+        observers=[replay_buffer_observer] + train_metrics,
+        num_episodes=update_period,
+    )
 
 
     initial_collect_policy = RandomTFPolicy(tf_env.time_step_spec(),
                                             tf_env.action_spec())
-    init_driver = DynamicStepDriver(
-        tf_env,
-        initial_collect_policy,
-        observers=[replay_buffer.add_batch, ShowProgress(10000)],
-        num_steps=10000)
-    #init_driver = DynamicEpisodeDriver(
+    #init_driver = DynamicStepDriver(
     #    tf_env,
     #    initial_collect_policy,
     #    observers=[replay_buffer.add_batch, ShowProgress(10000)],
-    #    num_episodes=10000)
+    #    num_steps=10000)
+    init_driver = DynamicEpisodeDriver(
+        tf_env,
+        initial_collect_policy,
+        observers=[replay_buffer.add_batch, ShowProgress(10000)],
+        num_episodes=10000)
     final_time_step, final_policy_state = init_driver.run()
 
 

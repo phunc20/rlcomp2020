@@ -4,6 +4,7 @@ import tensorflow.keras as keras
 
 #from tf_agents.environments import py_environment as pyenv, tf_py_environment, utils
 #from tf_agents.specs import array_spec 
+from tf_agents.networks.q_network import QNetwork
 from tf_agents.trajectories import time_step
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
 from tf_agents.networks.q_network import QNetwork
@@ -36,7 +37,7 @@ from tf_agents_miner_env import TFAgentsMiner
 # In[3]:
 
 
-n_iterations = 100_000
+n_iterations = 500_000
 collect_episodes_per_iteration = 5
 replay_buffer_capacity = 2000
 
@@ -56,35 +57,63 @@ eval_env = TFPyEnvironment(TFAgentsMiner())
 # In[6]:
 
 
+#conv_layer_params = [(4,(3,3),1), (8,(3,3),1)]
+#fc_layer_params = [128, 64, 32]
+#actor_net = actor_distribution_network.ActorDistributionNetwork(
+#    train_env.observation_spec(),
+#    train_env.action_spec(),
+#    conv_layer_params=conv_layer_params,
+#    fc_layer_params=fc_layer_params,
+#)
+
 conv_layer_params = [(4,(3,3),1), (8,(3,3),1)]
 fc_layer_params = [128, 64, 32]
-actor_net = actor_distribution_network.ActorDistributionNetwork(
+
+q_net = QNetwork(
     train_env.observation_spec(),
     train_env.action_spec(),
     conv_layer_params=conv_layer_params,
     fc_layer_params=fc_layer_params,
 )
 
-
 # In[7]:
 
 
-optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=lr_optimizer)
-#optimizer = keras.optimizers.RMSprop(lr=lr_optimizer, rho=0.95, momentum=0.0, epsilon=0.00001, centered=True)
-
-#train_step_counter = tf.compat.v2.Variable(0)
+##optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=lr_optimizer)
+###optimizer = keras.optimizers.RMSprop(lr=lr_optimizer, rho=0.95, momentum=0.0, epsilon=0.00001, centered=True)
+#
+##train_step_counter = tf.compat.v2.Variable(0)
 global_step = tf.compat.v1.train.get_or_create_global_step()
+#
+#tf_agent = reinforce_agent.ReinforceAgent(
+#    train_env.time_step_spec(),
+#    train_env.action_spec(),
+#    actor_network=actor_net,
+#    optimizer=optimizer,
+#    normalize_returns=True,
+#    #train_step_counter=train_step_counter,
+#    train_step_counter=global_step,
+#)
+#tf_agent.initialize()
 
-tf_agent = reinforce_agent.ReinforceAgent(
+optimizer = keras.optimizers.RMSprop(lr=2.5e-4, rho=0.95, momentum=0.0, epsilon=0.00001, centered=True)
+epsilon_fn = keras.optimizers.schedules.PolynomialDecay(
+    initial_learning_rate=1.0, # initial ε
+    #decay_steps=380_000,
+    decay_steps=38_000,
+    end_learning_rate=0.01) # final ε
+
+tf_agent = DqnAgent(
     train_env.time_step_spec(),
     train_env.action_spec(),
-    actor_network=actor_net,
+    q_network=q_net,
     optimizer=optimizer,
-    normalize_returns=True,
-    #train_step_counter=train_step_counter,
+    target_update_period=50,
+    td_errors_loss_fn=keras.losses.Huber(reduction="none"),
+    gamma=0.95, # discount factor
     train_step_counter=global_step,
+    epsilon_greedy=lambda: epsilon_fn(global_step),
 )
-
 tf_agent.initialize()
 
 
@@ -94,11 +123,6 @@ tf_agent.initialize()
 eval_policy = tf_agent.policy
 collect_policy = tf_agent.collect_policy
 
-
-# In[10]:
-
-
-# **(?1)** Do we need to set `train_env.batch_size` in our case for the `miner_env`?
 
 # In[11]:
 
@@ -120,6 +144,7 @@ def compute_avg_return(environment, policy, n_episodes=10):
 
 # In[12]:
 
+print(f"train_env.batch_size = {train_env.batch_size}")
 
 replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
     data_spec=tf_agent.collect_data_spec,
@@ -160,7 +185,7 @@ tf_agent.train = common.function(tf_agent.train)
 #now_str = now.strftime("%Y%m%d-%H%M")
 #script_name = __file__.split('.')[0]
 #script_name = "03_checkpointer"
-script_name = "04_tuning"
+script_name = __file__
 save_dir = os.path.join("models", script_name)
 os.makedirs(save_dir, exist_ok=True)
 #logging.basicConfig(filename=os.path.join(save_path, f"log-{now_str}.txt"),level=logging.DEBUG)
@@ -194,7 +219,7 @@ for _ in range(n_iterations):
     #experience = replay_buffer.as_dataset(single_deterministic_pass=True)
     
     experience = replay_buffer.gather_all()
-    print(experience.observation.numpy().shape)
+    print(experience)
     train_loss = tf_agent.train(experience)
     replay_buffer.clear()
 
