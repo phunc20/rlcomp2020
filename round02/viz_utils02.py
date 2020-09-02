@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from constants import width, height, terrain_ids, n_px
+from constants02 import width, height, terrain_ids, n_px
 
 # in RGB format
 #gold = [99.3, 68.8, 1.0]
@@ -83,14 +83,14 @@ def gold_total(map_):
     return map_[map_ > 0].sum()
 
 #def pictorial_state(obs):
-#    pictorial = np.zeros((constants.height, constants.width, 2), dtype=np.float32)
+#    pictorial = np.zeros((constants02.height, constants02.width, 2), dtype=np.float32)
 #    # dtype=np.float32 because pictorial will later be carried into tensorflow CNN
-#    pictorial[..., 0] = obs[:constants.n_px].reshape((constants.height, constants.width))
+#    pictorial[..., 0] = obs[:constants02.n_px].reshape((constants02.height, constants02.width))
 #    # position of agent: we put the energy value at the coordinate where stands the agent, the whole in the last channel.
-#    pictorial[obs[constants.n_px], obs[constants.n_px+1], -1] = obs[constants.n_px+2]
+#    pictorial[obs[constants02.n_px], obs[constants02.n_px+1], -1] = obs[constants02.n_px+2]
 #    # position of bots: we put -1 on the coord of the bots
 #    for i in range(1, 3+1):
-#        pictorial[obs[constants.n_px+(2*i+1)], obs[constants.n_px+(2*i+2)], -1] = -1
+#        pictorial[obs[constants02.n_px+(2*i+1)], obs[constants02.n_px+(2*i+2)], -1] = -1
 #    return pictorial
 
 
