@@ -55,27 +55,27 @@ def find_worthiest_gold(s):
 
 def need_rest(next_terrain, energy):
     if next_terrain == "gold":
-        if energy <= punishments[next_terrain]:
+        if energy <= 4:
             return True
         else:
             return False
     elif next_terrain == "land":
-        if energy <= punishments[next_terrain]:
+        if energy <= 1:
             return True
         else:
             return False
     elif next_terrain == "trap":
-        if energy <= punishments[next_terrain]:
+        if energy <= 10:
             return True
         else:
             return False
     elif next_terrain == "forest":
-        if energy <= punishments[next_terrain]:
+        if energy <= 20:
             return True
         else:
             return False
     elif next_terrain == "swamp":
-        if energy <= punishments[next_terrain]:
+        if energy <= 40:
             return True
         else:
             return False
@@ -243,7 +243,7 @@ def greedy_policy(s, how_gold=find_closest_gold, prev_displacement=None):
     if need_rest(next_terrain, energy_agent):
         return available_actions["rest"]
     else:
-        logging.debug(f"(Final) needed_displacements = {needed_displacements}, index = {index}, pos_agent = {pos_agent}")
+        #logging.debug(f"(Final) needed_displacements = {needed_displacements}, index = {index}, pos_agent = {pos_agent}")
         #print(f"(Final) needed_displacements = {needed_displacements}, index = {index}, pos_agent = {pos_agent}")
         return available_actions[needed_displacements[index]]
 

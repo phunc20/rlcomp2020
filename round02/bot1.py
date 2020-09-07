@@ -67,7 +67,11 @@ class Bot1:
 
     def next_action(self):
         s = self.get_198_state()
-        return int(self.policy(s))
+        #return int(self.policy(s))
+        int_action = int(self.policy(s))
+        #print(f"(bot1) pos ({self.info.posx:2d},{self.info.posy:2d}) energy {self.info.energy:2d}")
+        #print(f"       {constants02.action_id2str[int_action]}")
+        return int_action
 
 
     def new_game(self, data):
@@ -85,6 +89,9 @@ class Bot1:
         except Exception as e:
             import traceback
             traceback.print_exc()
+
+    #def get_score(self):
+    #    return [player["score"] for player in minerEnv.socket.bots[1].state.players if player["playerId"] == self.info.playerId][0]
 
     #def next_action(self):
     #    if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:

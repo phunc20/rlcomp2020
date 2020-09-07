@@ -7,7 +7,8 @@ import os
 import sys
 #sys.path.append(os.path.abspath(os.path.pardir))
 import constants02
-from constants02 import terrain_ids, width, height, forest_energy
+#from constants02 import terrain_ids, width, height, forest_energy
+from constants02 import *
 
 class MinerEnv:
     def __init__(self, host="localhost", port=1111):
@@ -16,6 +17,20 @@ class MinerEnv:
         
         self.score_pre = self.state.score
         self.n_mines_visited = 0
+        self.view_9x21x5 = None
+        self.view_9x21x5_prev = None  # previous frame
+        #self.channel2 = None
+        #self.channel2_prev = None
+        self.start_tracking_swamp = False
+        self.other_players = []
+        for player in self.state.players:
+            if player["playerId"] != self.state.id:
+                self.other_players.append((player["playerId"], player))
+            else:
+                self.player_main = player
+        self.other_players = sorted(self.other_players)
+        self.energy = 50
+        self.energy_pre = 50
 
     def start(self): #connect to server
         self.socket.connect()
@@ -31,6 +46,16 @@ class MinerEnv:
             message = self.socket.receive() #receive game info from server
             self.state.init_state(message) #init state
             self.n_mines_visited = 0
+            self.view_9x21x5 = None
+            self.view_9x21x5_prev = None  # previous frame
+            #self.channel2 = None
+            #self.channel2_prev = None
+            self.start_tracking_swamp = False
+            self.other_players = []
+            for player in self.state.players:
+                if player["playerId"] != self.state.id:
+                    self.other_players.append((player["playerId"], player))
+            self.other_players = sorted(self.other_players)
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -43,6 +68,144 @@ class MinerEnv:
         except Exception as e:
             import traceback
             traceback.print_exc()
+
+    def get_view_9x21x5(self):
+        """
+        self.state.mapInfo.get_obstacle(x, y) returns an int
+        and has the following meaning:
+         0: land
+         1: forest
+         2: trap
+         3: swamp
+        -1: gold
+        """
+        #print(f"self.view_9x21x5 is None: {self.view_9x21x5 is None}")
+        if not self.view_9x21x5 is None:
+            #print(f"view_9x21x5 copied to view_9x21x5_prev")
+            self.view_9x21x5_prev = self.view_9x21x5.copy()
+        ## channel0 will contain the ids of each terrain
+        ## channel1 will contain the value of each terrain, notably
+        ##          it can track swamp's value
+        ## channel2 agent's position
+        ## channel3 Bot1's position
+        ## channel4 Bot2's position
+        ## channel5 Bot3's position
+        channel0 = np.empty([height, width], dtype=np.float32)
+        for x in range(width):
+            for y in range(height):
+                    obstacle_id = self.state.mapInfo.get_obstacle(x, y)
+                    if obstacle_id == -1: # i.e. if (x, y) gold
+                        channel0[y, x] = self.state.mapInfo.gold_amount(x, y)
+                    else:
+                        channel0[y, x] = obstacle_id
+        #print(f"channel0 =\n{channel0.astype(np.int16)}")
+        ## Let's construct channel2-5 first,
+        ## since the construction of channel1 is much more involved.
+        ## (Note. we'll temporarily use 1 to show bots' pos)
+        channel2 = np.zeros([height, width], dtype=np.float32)
+        channel2[self.state.y, self.state.x] = self.state.energy
+
+        channels_other_players = np.zeros([height, width, 3], dtype=np.float32)
+        #channel3 = np.zeros([height, width], dtype=np.float32)
+        #channel4 = np.zeros([height, width], dtype=np.float32)
+        #channel5 = np.zeros([height, width], dtype=np.float32)
+        #self.other_players = []
+        index = 0
+        for player in self.state.players:
+            if player["playerId"] != self.state.id:
+                #self.other_players.append((player["playerId"], player))
+                x = player["posx"]
+                y = player["posy"]
+                channels_other_players[..., index][y, x] = 1
+                index += 1
+        ##self.other_players = []
+        ##for player in self.state.players:
+        ##    if player["playerId"] != self.state.id:
+        ##        self.other_players.append((player["playerId"], player))
+        ##self.other_players = sorted(self.other_players)
+        #for k, player in enumerate(self.other_players):
+        #    # player[0] is its ID, player[1] its information.
+        #    xk = player[1]["posx"]
+        #    yk = player[1]["posy"]
+        #    channels_other_players[..., k][yk, xk] = 1
+
+        ## Construction of channel1
+        ## depending on whether beginning of an episode (aka BOE)
+        if not self.start_tracking_swamp:
+            #print(f"self.start_tracking_swamp = {self.start_tracking_swamp}")
+            self.start_tracking_swamp = True
+            channel1 = channel0.copy()
+            #channel1[channel1 == terrain_ids["land"]] = punishments["land"]
+            channel1[channel0 == terrain_ids["land"]] = punishments["land"]
+            # forest will be "overestimated" by its highest strike
+            #channel1[channel1 == terrain_ids["forest"]] = punishments["forest"]
+            channel1[channel0 == terrain_ids["forest"]] = punishments["forest"]
+            
+            #channel1[channel1 == terrain_ids["trap"]] = punishments["trap"]
+            channel1[channel0 == terrain_ids["trap"]] = punishments["trap"]
+            ## BOE => all swamp values are -5, but we'll make it -5.1
+            #channel1[channel1 == terrain_ids["swamp"]] = punishments["swamp"]
+            channel1[channel0 == terrain_ids["swamp"]] = punishments["swamp"]
+            # gold will be kept unchanged
+            #self.view_9x21x5 = np.stack((channel1, channel2, channel3, channel4, channel5), axis=-1)
+            self.view_9x21x5 = np.stack((channel1, channel2, channels_other_players[..., 0], channels_other_players[..., 1], channels_other_players[..., 2]), axis=-1)
+            #self.view_9x21x5 = np.stack((channel1, channel2), axis=-1)
+            #print(f"(1st entering) view =\n{self.view_9x21x5[...,0].astype(np.int16)}\nview_pre =\n{self.view_9x21x5_prev}")
+            return self.view_9x21x5
+        else:
+            #print(f"self.start_tracking_swamp = {self.start_tracking_swamp}")
+            #print(f"(2nd entering) view_pre =\n{self.view_9x21x5_prev[...,0].astype(np.int16)}")
+            # Update self.view_9x21x5
+            self.view_9x21x5[...,1] = channel2
+            for i in range(2, 5):
+                self.view_9x21x5[...,i] = channels_other_players[...,i-2]
+
+            #channel1 = self.view_9x21x5_prev[..., 1]
+            channel1 = self.view_9x21x5_prev[..., 0]
+            #print(f"channel1 =\n{channel1.astype(np.int16)}")
+            ## land is permanent; but gold may become land
+            channel1[channel0 == terrain_ids["land"]] = punishments["land"]
+            ## forest is permanent
+            #channel1[channel0 == terrain_ids["forest"]] = punishments["forest"]
+            ## trap may become land if sb steps on it; but it only DECREASEs
+            #channel1[channel0 == terrain_ids["trap"]] = punishments["trap"]
+            ## Update gold's value
+            #channel1[channel0 > 0] = channel0[channel0 > 0]
+            channel1[channel0 > 3] = channel0[channel0 > 3]
+            ## swamp is also permanent, but its value may change
+            #for player in self.state.players:
+            #    if is_a_mv(player["lastAction"]):
+            #        x_now = player["posx"]
+            #        y_now = player["posy"]
+            #        is_swamp = channel0[y_now, x_now] == terrain_ids["swamp"]
+            #        if is_swamp:
+            #            channel1[y_now, x_now] = dict_bog[channel1[y_now, x_now]]
+            for c in range(1, 5):
+                moved = not np.array_equal(self.view_9x21x5[...,c] - self.view_9x21x5_prev[...,c], np.zeros_like(self.view_9x21x5[...,c]))
+                if moved:
+                    row, col = np.unravel_index(np.argmax(self.view_9x21x5[...,c], axis=None), self.view_9x21x5[...,c].shape)
+                    is_swamp = channel0[row, col] == terrain_ids["swamp"]
+                    if is_swamp:
+                        #print(f"row, col = {row}, {col}")
+                        #print(f"channel1[row, col] = {channel1[row, col]}")
+                        ## N.B.
+                        ## In [12]: np.array([-5.1],dtype=np.float32)[0] == -5.1
+                        ## Out[12]: False
+                        ## 
+                        ## In [13]: np.array([-5.1],dtype=np.float64)[0] == -5.1
+                        ## Out[13]: True
+                        ## 
+                        ## In [14]: np.array(-5.1,dtype=np.float64) == -5.1
+                        ## Out[14]: True
+                        ## 
+                        ## In [15]: np.array(-5.1,dtype=np.float32) == -5.1
+                        ## Out[15]: False
+                        channel1[row, col] = dict_bog[channel1[row, col]]
+                        #channel1[row, col] = dict_bog[np.round(channel1[row, col],1)]
+            #self.view_9x21x5 = np.stack((channel1, channel2), axis=-1)
+            self.view_9x21x5 = np.stack((channel1, channel2, channels_other_players[..., 0], channels_other_players[..., 1], channels_other_players[..., 2]), axis=-1)
+            #print(f"view =\n{self.view_9x21x5[...,0].astype(np.int16)}")
+            return self.view_9x21x5
 
     def get_198_state(self):
         view = np.zeros([self.state.mapInfo.max_y + 1, self.state.mapInfo.max_x + 1], dtype=int)
@@ -109,6 +272,60 @@ class MinerEnv:
     def get_9x21x2_tf_agent_state(self):
         state = self.get_9x21x2_state()
         return state.astype(np.float32)
+
+    def get_9x21x2_state_distinguish(self):
+        """
+        Same as get_9x21x2_state() but able to distinguish btw swamp and forest
+
+        To be more precise, swamp's -5 and -20 will be deliberately replaced by
+        -5.1 and -20.1 to distinguish them from forest's -5 and -20.
+        """
+        # Note that we must carry the dtype first to float
+        state = self.get_9x21x2_state().astype(np.float32)
+        ## Here we replace swamp's -5 by -5.1, etc.
+        for x in range(constants02.width):
+            for y in range(constants02.height):
+                if self.state.mapInfo.get_obstacle(x, y) == constants02.terrain_ids["swamp"]:
+                    if state[...,0][y, x] == -5:
+                        #state[...,0][y, x] = -5.1
+                        state[...,0][y, x] = - constants02.replace_swamp5
+                    elif state[...,0][y, x] == -20:
+                        #state[...,0][y, x] = -20.1
+                        state[...,0][y, x] = - constants02.replace_swamp20
+
+        return state
+
+
+    def get_non_RL_state_01(self):
+        """
+        return
+            view, energy, n_steps, pos_players
+            The latter will contain pos of all players, energy and stepCount of agent
+        """
+        view = self.get_9x21x2_state_distinguish()[...,0]
+        pos_players = np.empty((4, 2), dtype=np.int8)
+        pos_players[0] = self.state.x, self.state.y
+        for i, bot in enumerate(self.socket.bots):
+            pos_players[i+1] = bot.info.posx, bot.info.posy
+        return view, self.state.energy, self.state.stepCount, pos_players
+
+    def get_non_RL_state_02(self):
+        """
+        return
+            view, energy, n_steps, pos_players
+            The latter will contain pos of all players, energy and stepCount of agent
+        """
+        view = self.get_view_9x21x5()[..., 0]
+        pos_players = np.empty((4, 2), dtype=np.int8)
+        pos_players[0] = self.state.x, self.state.y
+        index = 1
+        for player in self.state.players:
+            if player["playerId"] != self.state.id:
+                x = player["posx"]
+                y = player["posy"]
+                pos_players[index] = x, y
+                index += 1
+        return view, self.state.energy, self.state.stepCount, pos_players
 
     def get_deprecated_reward_01(self):
         # Initialize reward
@@ -307,7 +524,8 @@ class MinerEnv:
     def get_reward_6act_21(self):
         # Initialize reward
         reward = 0
-        s = self.get_9x21x2_state()
+        #s = self.get_9x21x2_state()
+        s = self.get_9x21x2_state_distinguish()
         pos_now = np.array([self.state.x, self.state.y])
         reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
         pos_pre = pos_now + reverse_mv
@@ -317,7 +535,7 @@ class MinerEnv:
             #if self.state.stepCount < 50:
             #    reward += -5*(50 - self.state.stepCount)
             reward -= 1000
-            if terrain_pre > 100: # punish leaving gold
+            if terrain_pre > 0: # punish leaving gold
                 reward -= terrain_pre
         else:
             try:

@@ -43,7 +43,8 @@ class TFAgentsMiner(pyenv.PyEnvironment):
         self.env.send_map_info(request)
         self.env.reset()
         #observation = self.env.get_9x21x2_state()
-        observation = self.env.get_9x21x2_tf_agent_state()
+        #observation = self.env.get_9x21x2_tf_agent_state()
+        observation = self.env.get_9x21x2_state_distinguish()
 
         return time_step.restart(observation)
 
@@ -62,7 +63,8 @@ class TFAgentsMiner(pyenv.PyEnvironment):
             
         self.env.step(str(action))
         #observation = self.env.get_state()
-        observation = self.env.get_9x21x2_tf_agent_state()
+        #observation = self.env.get_9x21x2_tf_agent_state()
+        observation = self.env.get_9x21x2_state_distinguish()
         #reward = self.env.get_reward()
         #reward = self.env.get_deprecated_reward_01()
         #reward = self.env.get_reward_6act_20()

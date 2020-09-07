@@ -1,11 +1,35 @@
 import numpy as np
 
+replace_swamp5 = 5.1
+replace_swamp20 = 20.1
 
 n_allowed_steps = 100
 
-forest_energy = np.mean(np.arange(5,20))
-forest_energy = np.random.randint(5,20+1)
+#forest_energy = np.mean(np.arange(5,20))
+#forest_energy = np.random.randint(5,20+1)
 forest_energy = 20
+dig_energy = 5
+swamp_energy = (5,20,40,100)
+dict_swamp_energy = {
+    5: 20,
+    20: 40,
+    40: 100,
+    100: 100,
+}
+trap_energy = 10
+land_energy = 1
+#dict_bog = {
+#    -5.1: -20.1,
+#    -20.1: -40,
+#    -40: -100,
+#    -100: -100,
+#}
+dict_bog = {
+    -np.array(5.1, dtype=np.float32): -np.array(20.1, dtype=np.float32),
+    -np.array(20.1, dtype=np.float32): -40,
+    -40: -100,
+    -100: -100,
+}
 
 width = 21
 height = 9
@@ -28,6 +52,10 @@ left = 0
 right = 1
 rest = 4
 dig = 5
+
+def is_a_mv(action_id):
+    return action_id < 4
+
 
 reverse_action_id = {
     up: down,
@@ -74,11 +102,13 @@ action_id2ndarray = {
 code2action = {value: key for key, value in available_actions.items()}
 
 punishments = {
-    "land": 1,
-    "gold": 4,
-    "trap": 10,
-    "forest": 20,
-    "swamp": 40,
+    "land": -1,
+    "gold": -4,
+    "trap": -10,
+    "forest": -20,
+    "swamp": -5.1,
+    "dig_right": -5,
+    "dig_wrong": -10,
 }
 
 
@@ -186,7 +216,8 @@ def out_of_map(pos):
     y_out = y < 0 or y >= height
     return x_out or y_out
 
-
+def l1_dist(pos1, pos2):
+    return np.linalg.norm(pos1 - pos2, ord=1)
 
 
 

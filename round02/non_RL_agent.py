@@ -57,27 +57,27 @@ def find_worthiest_gold(s):
 
 def need_rest(next_terrain, energy):
     if next_terrain == "gold":
-        if energy <= punishments[next_terrain]:
+        if energy <= 4:
             return True
         else:
             return False
     elif next_terrain == "land":
-        if energy <= punishments[next_terrain]:
+        if energy <= 1:
             return True
         else:
             return False
     elif next_terrain == "trap":
-        if energy <= punishments[next_terrain]:
+        if energy <= 10:
             return True
         else:
             return False
     elif next_terrain == "forest":
-        if energy <= punishments[next_terrain]:
+        if energy <= 20:
             return True
         else:
             return False
     elif next_terrain == "swamp":
-        if energy <= punishments[next_terrain]:
+        if energy <= 40:
             return True
         else:
             return False

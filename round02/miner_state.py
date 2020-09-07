@@ -103,6 +103,7 @@ class State:
         self.x = game_info["posx"]
         self.y = game_info["posy"]
         self.energy = game_info["energy"]
+        self.energy_pre = self.energy
         self.mapInfo.init_map(game_info["gameinfo"])
         self.stepCount = 0
         self.status = State.STATUS_PLAYING
