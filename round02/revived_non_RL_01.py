@@ -7,15 +7,15 @@ methods' name starting with
 """
 
 import logging
+logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.WARNING)
 import numpy as np
 from scipy.ndimage import gaussian_filter
 #import constants02
 from constants02 import *
 #from viz_utils02 import *
 from collections import deque
-#logging.basicConfig(level=logging.DEBUG)
-#logging.basicConfig(level=logging.INFO)
-logging.basicConfig(level=logging.WARNING)
 
 class Goat:
     """
@@ -59,23 +59,33 @@ class Goat:
 
     #def evaluate_00(pos_gold, n_remain_steps):
     #def trouver_most_valuable_gold(pos_gold, n_remain_steps):
-    def trouver_most_valuable_gold(self, pos_from=self.pos, ratio=2/3):
+    #def trouver_most_valuable_gold(self, pos_from=self.pos, ratio=2/3):
+    def trouver_most_valuable_gold(self, pos_from=None, ratio=2/3):
         # TODO
+        if pos_from is None:
+            pos_from = self.pos
+        logging.debug(f"pos_from = {pos_from}")
         n_remain_mv = round(self.n_remain_steps * ratio) # we assume every 3 steps need 1 rest, i.e. 2/3 of the time spending on real movement
+        logging.debug(f"n_remain_mv = {n_remain_mv}")
         values = []
         duppleganger = self.pos_possible_golds.copy()
+        logging.debug(f"duppleganger = {duppleganger}")
         self.pos_possible_golds = []
         for pos_gold in duppleganger:
             distance = l1_dist(pos_gold, pos_from)
             n_approx_needed_steps = round(distance / ratio)
             #if distance >= n_remain_mv:
             if n_approx_needed_steps >= self.n_remain_steps:
+                logging.debug(f"pos_gold {pos_gold} distance {distance} too far")
                 self.pos_impossible_golds.append(pos_gold)
                 #self.update_pos_possible_golds(pos_gold)
                 #self.pos_possible_golds.append(pos_gold)
             else:
+                logging.debug(f"pos_gold {pos_gold} distance {distance} reachable")
                 ## TODO: n_left_steps to be tuned
                 n_left_steps = max(0, self.n_remain_steps - n_approx_needed_steps - 1)
+                if n_left_steps == 0:
+                    logging.debug(f"n_left_steps = {n_left_steps}")
                 value = self.valeur(pos_gold, n_left_steps)
                 values.append(value)
                 self.pos_possible_golds.append(pos_gold)
@@ -107,6 +117,8 @@ class Goat:
         #    self.pos_impossible_golds.append(self.pos_target_gold)
         #elif len(self.distance_to_target) > long_ and self.distance_to_target[-1] >= min(list(self.distance_to_target)[:-1]):
         #    self.pos_impossible_golds.append(self.pos_target_gold)
+        logging.debug(f"(Entering towards_target())")
+        logging.debug(f"self.pos_target_gold = {self.pos_target_gold}, self.pos = {self.pos}")
         self.distance_to_target.append(l1_dist(self.pos_target_gold, self.pos))
         ## Try to follow the shortest path to target
         needed_displacements = []
@@ -119,7 +131,6 @@ class Goat:
         elif vec_displacement[0] < 0:
             #needed_displacements.extend(["left"]*vec_displacement[0])
             needed_displacements.append(left)
-        
         # vertical, i.e. y-movement
         if vec_displacement[1] > 0:
             #needed_displacements.extend(["down"]*vec_displacement[0])
@@ -183,14 +194,18 @@ class Goat:
                 if np.array_equal(pos_impossible, pos):
                     index_row_delete.append(i)
                     break
-        pos_possible_golds = np.delete(pos_golds, index_row_delete, 0)
-        return pos_possible_golds
+        self.pos_possible_golds = np.delete(pos_golds, index_row_delete, 0)
+        return self.pos_possible_golds
 
-    def update_pos_possible_golds(self, pos_rm_gold):
+    #def update_pos_possible_golds(self, pos_rm_gold):
+    def update_pos_possible_golds(self):
         # TODO
         pass
 
-    def trouver_nearest_gold(self, pos_from=self.pos):
+    def trouver_nearest_gold(self, pos_from=None):
+        if pos_from is None:
+            pos_from=self.pos
+
         distances = np.array([l1_dist(pos_gold, pos_from) for pos_gold in self.pos_possible_golds])
         #print(f"distances = {distances}")
         nearest_gold_index = np.argmin(distances)
@@ -408,11 +423,15 @@ class Goat:
             return needed_displacements[index]
 
     
-    def find_gold_within_k_steps(self, pos_from=self.pos, k=3):
+    def find_gold_within_k_steps(self, pos_from=None, k=3):
+        if pos_from is None:
+            pos_from=self.pos
         # TODO
         pass
 
-    def exist_gold_within_k_steps(self, pos_from=self.pos, k=3):
+    def exist_gold_within_k_steps(self, pos_from=None, k=3):
+        if pos_from is None:
+            pos_from=self.pos
         exist = False
         for pos_gold in self.pos_possible_golds:
             if l1_dist(pos_gold, pos_from) <= k:
@@ -431,17 +450,27 @@ class Goat:
         self.x, self.y = self.pos
         ## Update self.pos_possible_golds
         # TODO
+        logging.debug(f"self.stepCount = {self.stepCount}")
         if self.stepCount == 0: # TODO: or == 1?
             self.construct_pos_possible_golds()
         else:
             self.update_pos_possible_golds()
 
-        standing_on_gold = view[self.y, self.x] > 0
+        terrain_here = self.view[self.y, self.x]
+        standing_on_gold = terrain_here > 0
         if standing_on_gold:
-            if energy > dig_energy:
+            if self.energy > dig_energy:
+                # No Good
+                #if terrain_here <= 50: # i.e. this will be the last dig
+                #    self.pos_target_gold = None
                 return dig
             else:
                 return rest
+
+        ## We need to empty self.pos_target_gold once it contains no gold
+        if (not self.pos_target_gold is None) and (self.view[self.pos_target_gold[1], self.pos_target_gold[0]] <= 0):
+            logging.debug(f"Epuise self.pos_target_gold = {self.pos_target_gold}, amount = {self.view[self.pos_target_gold[1], self.pos_target_gold[0]]}")
+            self.pos_target_gold = None
 
         # TODO: Whether or not at Beginning, target most valuable gold
 
@@ -449,17 +478,21 @@ class Goat:
         if len(self.pos_possible_golds) == 0:
             ## Just go to nearest gold
             #self.pos_possible_golds.append()
+            logging.debug(f"len(self.pos_possible_golds) equals 0")
             pass
 
 
 
         # TODO: Une fois the target gold epuise, il nous faut encore creuser de l'or qui sont autour
+        logging.debug(f"self.pos_target_gold = {self.pos_target_gold}")
         if self.pos_target_gold is None:
             if self.exist_gold_within_k_steps():
                 #return self.one_step_closer_to(self.trouver_nearest_gold())
+                logging.debug(f"exist_gold_within_k_steps")
                 self.pos_target_gold = self.trouver_nearest_gold()
                 return self.towards_target()
             else:
+                logging.debug(f"NOT exist_gold_within_k_steps")
                 self.pos_target_gold = self.trouver_most_valuable_gold()
                 #return self.one_step_closer_to(self.pos_target_gold)
                 return self.towards_target()

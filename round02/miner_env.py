@@ -5,6 +5,7 @@ from game_socket_dummy import GameSocket
 from miner_state import State
 import os
 import sys
+import logging
 #sys.path.append(os.path.abspath(os.path.pardir))
 import constants02
 #from constants02 import terrain_ids, width, height, forest_energy
@@ -103,7 +104,12 @@ class MinerEnv:
         ## since the construction of channel1 is much more involved.
         ## (Note. we'll temporarily use 1 to show bots' pos)
         channel2 = np.zeros([height, width], dtype=np.float32)
-        channel2[self.state.y, self.state.x] = self.state.energy
+        try:
+            logging.debug(f"self.state.x, self.state.y = {self.state.x}, {self.state.y}")
+            channel2[self.state.y, self.state.x] = self.state.energy
+        except IndexError as e:
+            # When agent out of MAP, we just leave channel2 zero everywhere
+            pass
 
         channels_other_players = np.zeros([height, width, 3], dtype=np.float32)
         #channel3 = np.zeros([height, width], dtype=np.float32)
@@ -596,6 +602,7 @@ class MinerEnv:
     def check_terminate(self):
         #Checking the status of the game
         #it indicates the game ends or is playing
+        logging.debug(f"check_terminate: {agent_state_id2str[self.state.status]}")
         return self.state.status != State.STATUS_PLAYING
 
 

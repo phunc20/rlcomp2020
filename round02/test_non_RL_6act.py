@@ -4,7 +4,8 @@ import json
 import os
 import sys
 import logging
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 import constants02
 #import non_RL_agent
@@ -54,17 +55,21 @@ for mapID in mapID_gen():
         #logging.debug(f"maxStep = {maxStep}")
         #print(f"maxStep = {maxStep}")
         for step in range(constants02.n_allowed_steps):
+            logging.debug(f"\n\n")
             logging.debug(f"step = {step + 1}")
             print(f"##########################")
             print(f"## step = {step + 1}")
             print(f"##########################")
             ## non-RL
-            str_ = str(goat.policy_nearest_gold(view, energy, pos_players))
+            #str_ = str(goat.policy_nearest_gold(view, energy, pos_players))
+            str_ = str(goat.policy_00(env))
             env.step(str_)
             if not goat.pos_target_gold is None:
-                print(f"energy = {env.state.energy}, pos = ({env.state.x:2d},{env.state.y:2d}), lastAction = {constants02.action_id2str[env.state.lastAction]}, target = {goat.pos_target_gold}, amount = {view[goat.pos_target_gold[1], goat.pos_target_gold[0]]}, score = {env.state.score}")
+                #print(f"energy = {env.state.energy}, pos = ({env.state.x:2d},{env.state.y:2d}), lastAction = {constants02.action_id2str[env.state.lastAction]}, target = {goat.pos_target_gold}, amount = {view[goat.pos_target_gold[1], goat.pos_target_gold[0]]}, score = {env.state.score}")
+                logging.debug(f"energy = {env.state.energy}, pos = ({env.state.x:2d},{env.state.y:2d}), lastAction = {constants02.action_id2str[env.state.lastAction]}, target = {goat.pos_target_gold}, amount = {view[goat.pos_target_gold[1], goat.pos_target_gold[0]]}, score = {env.state.score}")
             else:
-                print(f"energy = {env.state.energy}, pos = ({env.state.x:2d},{env.state.y:2d}), lastAction = {constants02.action_id2str[env.state.lastAction]}, target = {goat.pos_target_gold}, score = {env.state.score}")
+                #print(f"energy = {env.state.energy}, pos = ({env.state.x:2d},{env.state.y:2d}), lastAction = {constants02.action_id2str[env.state.lastAction]}, target = {goat.pos_target_gold}, score = {env.state.score}")
+                logging.debug(f"energy = {env.state.energy}, pos = ({env.state.x:2d},{env.state.y:2d}), lastAction = {constants02.action_id2str[env.state.lastAction]}, target = {goat.pos_target_gold}, score = {env.state.score}")
             #env.step(str(constants02.rest))
             #view, energy, stepCount, pos_players = env.get_non_RL_state_01()
             view, energy, stepCount, pos_players = env.get_non_RL_state_02()
