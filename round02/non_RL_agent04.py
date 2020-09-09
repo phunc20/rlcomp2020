@@ -185,10 +185,10 @@ def greedy_policy(env, how_gold=find_closest_gold, prev_displacement=None):
             pos_terrain = pos_agent + np.array([0,1])
         elif displacement == "up":
             pos_terrain = pos_agent + np.array([0,-1])
-        logging.debug(f"pos_terrain = {pos_terrain}")
+        #logging.debug(f"pos_terrain = {pos_terrain}")
         #print(f"pos_terrain = {pos_terrain}")
         id_terrain = -numerical_image[pos_terrain[1], pos_terrain[0]]
-        logging.debug(f"id_terrain = {id_terrain}")
+        #logging.debug(f"id_terrain = {id_terrain}")
         #print(f"id_terrain = {id_terrain}")
         name_terrain = terrain_names[id_terrain] if id_terrain >= 0 else "gold"
         upcoming_terrains.append(name_terrain)
@@ -223,13 +223,13 @@ def greedy_policy(env, how_gold=find_closest_gold, prev_displacement=None):
             elif pos_agent[1] == height-1:
                 permissible_displacements.remove("down")
             permissible_displacements = permissible_displacements - set(needed_displacements)
-            logging.debug(f"permissible_displacements = {permissible_displacements}")
+            #logging.debug(f"permissible_displacements = {permissible_displacements}")
             #print(f"permissible_displacements = {permissible_displacements}")
             if len(permissible_displacements) == 0:
                 pass
             else:
                 chosen = np.random.choice(list(permissible_displacements))
-                logging.debug(f"chosen = {chosen}")
+                #logging.debug(f"chosen = {chosen}")
                 #print(f"chosen = {chosen}")
                 needed_displacements = [chosen]
                 index = 0
@@ -253,7 +253,7 @@ def greedy_policy(env, how_gold=find_closest_gold, prev_displacement=None):
     ######################################
     ## END: isolate processing of swamp ##
     ######################################
-    logging.debug("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
+    #logging.debug("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
     #print("next_terrain = {}, energy_agent = {}".format(next_terrain, energy_agent))
     if need_rest(next_terrain, energy_agent):
         return available_actions["rest"]

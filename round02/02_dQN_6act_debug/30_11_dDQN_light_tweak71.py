@@ -35,6 +35,8 @@ import tensorflow.keras as keras
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.pardir))
@@ -125,9 +127,11 @@ def epsilon_greedy_policy(state, epsilon=0, n_actions=6):
 
 def play_one_step(env, state, epsilon):
     action = epsilon_greedy_policy(state, epsilon)
+    logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), terrain={state[...,0][env.state.y, env.state.x]}, action={constants02.action_id2str[action]}, energy={env.state.energy}, score={env.state.score}")
     #next_state, reward, done, info = env.step(action)
     env.step(str(action))
-    next_state = env.get_9x21x2_state()
+    #next_state = env.get_9x21x2_state()
+    next_state = env.get_view_9x21x5()[...,:2]
     reward = env.get_reward_6act_21()
     done = env.check_terminate()
     replay_memory.append((state, action, reward, next_state, done))
@@ -184,7 +188,6 @@ best_score_avg = 1400
 
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
     for episode in range(n_episodes):
-        eliminated = []
         #mapID = np.random.randint(0, 5)
         mapID = np.random.randint(1,6)
         posID_x = np.random.randint(constants02.width) 
@@ -192,9 +195,13 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         request = "map{},{},{},50,100".format(mapID, posID_x, posID_y)
         env.send_map_info(request)
         env.reset()
-        obs = env.get_9x21x2_state()
+        #obs = env.get_9x21x2_state()
+        obs = env.get_view_9x21x5()[...,:2]
+        delimiter = "==================================================="
+        logging.debug(f"\n{delimiter}\nmapID {mapID}, start (x,y) = ({posID_x}, {posID_y}) on terrain {obs[...,0][posID_y, posID_x]} \n{delimiter}")
         undiscounted_return = 0
         for step in range(n_allowed_steps):
+            logging.debug(f"(step {step:3d})")
             epsilon = max(1 - episode / n_epsilon_decay, 0.01)
             obs, reward, done = play_one_step(env, obs, epsilon)
             undiscounted_return += reward
@@ -209,23 +216,15 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         #if score > best_score:
         if score_avg > best_score_avg:
             #best_weights = model.get_weights()
-            best_score_avg = score_avg 
+            #best_score_avg = score_avg 
+            best_score_avg = min(1850, best_score_avg + 50)
             #best_score = score
             #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
             model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.2f}  undisc_return {: 6d}   step {: 3d}   eps {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
-        message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
-        ##############################################
-        #score = env.state.score*(n_allowed_steps - step)
-        #score = env.state.score
-        #scores.append(score)
-        #if score > best_score:
-        #    #best_weights = model.get_weights()
-        #    best_score = score
-        #    model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
-    
-        #message = "(Episode {: 5d}/{})   Gold: {: 4d}  undiscounted_return: {: 6d}   Steps: {: 3d}   eps: {:.3f}  ({})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
+        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
+        message = "(Episode {:6d}/{})   Gold {:4d}  undisc_return {:8.0f}   step {:3d}   eps: {:.2f}  (map {}: {})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, mapID, constants02.agent_state_id2str[env.state.status])
+
         print(message, end='')
         log.write(message)
     

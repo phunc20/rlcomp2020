@@ -105,7 +105,7 @@ class MinerEnv:
         ## (Note. we'll temporarily use 1 to show bots' pos)
         channel2 = np.zeros([height, width], dtype=np.float32)
         try:
-            logging.debug(f"self.state.x, self.state.y = {self.state.x}, {self.state.y}")
+            #logging.debug(f"self.state.x, self.state.y = {self.state.x}, {self.state.y}")
             channel2[self.state.y, self.state.x] = self.state.energy
         except IndexError as e:
             # When agent out of MAP, we just leave channel2 zero everywhere
@@ -602,7 +602,8 @@ class MinerEnv:
     def check_terminate(self):
         #Checking the status of the game
         #it indicates the game ends or is playing
-        logging.debug(f"check_terminate: {agent_state_id2str[self.state.status]}")
+        if self.state.status != State.STATUS_PLAYING:
+            logging.debug(f"check_terminate: {agent_state_id2str[self.state.status]}")
         return self.state.status != State.STATUS_PLAYING
 
 
