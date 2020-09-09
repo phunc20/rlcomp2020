@@ -1,5 +1,5 @@
 # rlcomp2020 Is A Repo in Order to
-record our team's effort in an RL competition held by Fsoft, a company in vietnam.
+record my "struggling" in an RL competition held by Fsoft, a company in vietnam.
 
 <b>Ref. URLs</b>
 - [https://codelearn.io/game/detail/2212875#ai-game-upload](https://codelearn.io/game/detail/2212875#ai-game-upload)
@@ -28,3 +28,9 @@ python TestingAgent.py
 Bạn dựa vào đó để tính toán giới hạn vàng nhé. Bạn có thể tham khảo 5 map đấu với bot.
 02. On <b><code>gold</code></b> with <code><b>energy=2</b></code>, if the player choose to <code><b>dig</b></code>, then
     - The player will <b>die</b> and this <b>w/o</b> obtaining any gold.
+
+
+
+## About <code>MinerEnv</code>
+- Want to know the <code><b>score</b></code>, <code><b>energy</b></code>, etc. of all players (agent as well as bots or agent of other teams)?
+    - <code><b>self.state.players</b></code> is the list of all players, identified by <code><b>"playerId"</b></code> (cf. <code><b>round01/debug_player_info.py</b></code>)
