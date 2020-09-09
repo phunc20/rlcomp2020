@@ -127,7 +127,7 @@ def epsilon_greedy_policy(state, epsilon=0, n_actions=6):
 
 def play_one_step(env, state, epsilon):
     action = epsilon_greedy_policy(state, epsilon)
-    logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), terrain={state[...,0][env.state.y, env.state.x]}, action={constants02.action_id2str[action]}, energy={env.state.energy}, score={env.state.score}")
+    #logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), terrain={state[...,0][env.state.y, env.state.x]}, action={constants02.action_id2str[action]}, energy={env.state.energy}, score={env.state.score}")
     #next_state, reward, done, info = env.step(action)
     env.step(str(action))
     #next_state = env.get_9x21x2_state()
@@ -135,6 +135,11 @@ def play_one_step(env, state, epsilon):
     reward = env.get_reward_6act_21()
     done = env.check_terminate()
     replay_memory.append((state, action, reward, next_state, done))
+    try:
+        logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), terrain={next_state[...,0][env.state.y, env.state.x]:.1f}, lastAction={constants02.action_id2str[action]}, energy={env.state.energy}, score={env.state.score}, reward={reward:.1f}")
+    except IndexError:
+        logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), lastAction={constants02.action_id2str[action]}, energy={env.state.energy}, score={env.state.score}, reward={reward:.1f}")
+    #next_state, reward, done, info = env.step(action)
     return next_state, reward, done
 
 
@@ -217,7 +222,7 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         if score_avg > best_score_avg:
             #best_weights = model.get_weights()
             #best_score_avg = score_avg 
-            best_score_avg = min(1850, best_score_avg + 50)
+            best_score_avg = min(1800, best_score_avg + 50)
             #best_score = score
             #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
             model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
