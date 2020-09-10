@@ -36,7 +36,8 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.pardir))
@@ -228,7 +229,7 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
         #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
-        message = "(Episode {:6d}/{})   Gold {:4d}  undisc_return {:8.0f}   step {:3d}   eps: {:.2f}  (map {}: {})\n".format(episode+1, n_episodes, env.state.score, undiscounted_return, step + 1, epsilon, mapID, constants02.agent_state_id2str[env.state.status])
+        message = "(Episode {:6d}/{})  Gold {:4d}  avg {:5.0f}  undisc_return {:8.0f}   step {:3d}   eps: {:.2f}  (map {}: {})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, mapID, constants02.agent_state_id2str[env.state.status])
 
         print(message, end='')
         log.write(message)
