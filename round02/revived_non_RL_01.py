@@ -7,7 +7,7 @@ methods' name starting with
 """
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 #logging.basicConfig(level=logging.INFO)
 #logging.basicConfig(level=logging.WARNING)
 import numpy as np
@@ -34,12 +34,14 @@ class Goat:
         self.n_remain_steps = None
         self.pos_other_players = None
 
-    def valeur(self, pos_gold, n_approx_steps, k=2):
+    def valeur(self, pos_gold, n_approx_steps, k=3):
         #propre_valeur = 
         #extra_valeur = 
         # TODO: Take swamp into consideration
+        logging.debug(f"(Inside valeur())")
         valeurs = []
         poids = []
+        logging.debug(f"self.pos_possible_golds = {self.pos_possible_golds}")
         for pos_vang in self.pos_possible_golds:
             distance = l1_dist(pos_vang, pos_gold)
             if distance > k:
@@ -49,51 +51,102 @@ class Goat:
                 valeurs.append(self.view[pos_vang[1], pos_vang[0]])
         valeurs = np.array(valeurs)
         poids = np.array(poids)
+        logging.debug(f"pos_gold = {pos_gold}")
+        logging.debug(f"valeurs = {valeurs}")
+        logging.debug(f"poids = {poids}")
+        logging.debug(f"(valeurs*poids).sum() = {(valeurs*poids).sum()}")
+        logging.debug(f"n_approx_steps*15 = {n_approx_steps*15}")
         total = max(0, (valeurs*poids).sum() - n_approx_steps*15)
+        #total = max(0, (valeurs*poids).sum() / poids.sum() - n_approx_steps*15)
+        if total == 0:
+            logging.debug(f"{pos_gold} evaluated to 0")
         n_share = 1
         for pos_opponent in self.pos_other_players:
             if l1_dist(pos_opponent, pos_gold) <= k:
                 n_share += 1
-        total = total / 4
+        total = total / n_share
+        logging.debug(f"totally: {total}")
         return total
 
     #def evaluate_00(pos_gold, n_remain_steps):
     #def trouver_most_valuable_gold(pos_gold, n_remain_steps):
     #def trouver_most_valuable_gold(self, pos_from=self.pos, ratio=2/3):
+    #def trouver_most_valuable_gold(self, pos_from=None, ratio=2/3):
+    #    # TODO
+    #    if pos_from is None:
+    #        pos_from = self.pos
+    #    logging.debug(f"pos_from = {pos_from}")
+    #    n_remain_mv = round(self.n_remain_steps * ratio) # we assume every 3 steps need 1 rest, i.e. 2/3 of the time spending on real movement
+    #    logging.debug(f"n_remain_mv = {n_remain_mv}")
+    #    values = []
+    #    duppelganger = self.pos_possible_golds.copy()
+    #    logging.debug(f"duppelganger =\n{duppelganger}")
+    #    self.pos_possible_golds = []
+    #    try:
+    #        for pos_gold in duppelganger:
+    #            distance = l1_dist(pos_gold, pos_from)
+    #            n_approx_needed_steps = round(distance / ratio)
+    #            #if distance >= n_remain_mv:
+    #            if n_approx_needed_steps >= self.n_remain_steps:
+    #                logging.debug(f"pos_gold {pos_gold} distance {int(distance):2d} too far")
+    #                self.pos_impossible_golds.append(pos_gold)
+    #                #self.update_pos_possible_golds(pos_gold)
+    #                #self.pos_possible_golds.append(pos_gold)
+    #            else:
+    #                logging.debug(f"pos_gold {pos_gold} distance {int(distance):2d} reachable")
+    #                ## TODO: n_left_steps to be tuned
+    #                n_left_steps = max(0, self.n_remain_steps - n_approx_needed_steps - 1)
+    #                if n_left_steps == 0:
+    #                    logging.debug(f"n_left_steps = {n_left_steps}")
+    #                value = self.valeur(pos_gold, n_left_steps)
+    #                values.append(value)
+    #                self.pos_possible_golds.append(pos_gold)
+    #        values = np.array(values)
+    #        self.pos_possible_golds = np.array(self.pos_possible_golds, dtype=np.int8)
+    #        #index = np.argmax(values, axis=)
+    #        index = np.argmax(values)
+    #        return self.pos_possible_golds[index]
+    #    except ValueError as e:
+    #        logging.debug(f"{e}")
+    #        return None
+
     def trouver_most_valuable_gold(self, pos_from=None, ratio=2/3):
-        # TODO
         if pos_from is None:
             pos_from = self.pos
+        self.mis_a_jour()
         logging.debug(f"pos_from = {pos_from}")
         n_remain_mv = round(self.n_remain_steps * ratio) # we assume every 3 steps need 1 rest, i.e. 2/3 of the time spending on real movement
         logging.debug(f"n_remain_mv = {n_remain_mv}")
         values = []
-        duppleganger = self.pos_possible_golds.copy()
-        logging.debug(f"duppleganger = {duppleganger}")
-        self.pos_possible_golds = []
-        for pos_gold in duppleganger:
-            distance = l1_dist(pos_gold, pos_from)
-            n_approx_needed_steps = round(distance / ratio)
-            #if distance >= n_remain_mv:
-            if n_approx_needed_steps >= self.n_remain_steps:
-                logging.debug(f"pos_gold {pos_gold} distance {distance} too far")
-                self.pos_impossible_golds.append(pos_gold)
-                #self.update_pos_possible_golds(pos_gold)
-                #self.pos_possible_golds.append(pos_gold)
-            else:
-                logging.debug(f"pos_gold {pos_gold} distance {distance} reachable")
-                ## TODO: n_left_steps to be tuned
-                n_left_steps = max(0, self.n_remain_steps - n_approx_needed_steps - 1)
-                if n_left_steps == 0:
-                    logging.debug(f"n_left_steps = {n_left_steps}")
-                value = self.valeur(pos_gold, n_left_steps)
+        #duppelganger = self.pos_possible_golds.copy()
+        #logging.debug(f"duppelganger =\n{duppelganger}")
+        #self.pos_possible_golds = []
+        try:
+            for pos_gold in self.pos_possible_golds:
+                #distance = l1_dist(pos_gold, pos_from)
+                #n_approx_needed_steps = round(distance / ratio)
+                ##if distance >= n_remain_mv:
+                #if n_approx_needed_steps < self.n_remain_steps:
+                #    logging.debug(f"pos_gold {pos_gold} distance {int(distance):2d} reachable")
+                #    ## TODO: n_left_steps to be tuned
+                #    n_left_steps = max(0, self.n_remain_steps - n_approx_needed_steps - 1)
+                #    if n_left_steps == 0:
+                #        logging.debug(f"n_left_steps = {n_left_steps}")
+                #    value = self.valeur(pos_gold, n_left_steps)
+                #    values.append(value)
+                #    self.pos_possible_golds.append(pos_gold)
+                distance = l1_dist(pos_gold, pos_from)
+                n_steps_left = self.n_remain_steps - distance
+                value = self.valeur(pos_gold, n_steps_left)
                 values.append(value)
-                self.pos_possible_golds.append(pos_gold)
-        values = np.array(values)
-        self.pos_possible_golds = np.array(self.pos_possible_golds, dtype=np.int8)
-        #index = np.argmax(values, axis=)
-        index = np.argmax(values)
-        return self.pos_possible_golds[index]
+            values = np.array(values)
+            #self.pos_possible_golds = np.array(self.pos_possible_golds, dtype=np.int8)
+            #index = np.argmax(values, axis=)
+            index = np.argmax(values)
+            return self.pos_possible_golds[index]
+        except ValueError as e:
+            logging.debug(f"{e}")
+            return None
 
     def find_pos_golds(self, view):
         row_col_golds = np.argwhere(view>0)
@@ -185,27 +238,84 @@ class Goat:
         return pos_possible_golds
 
     def construct_pos_possible_golds(self):
+        logging.debug("(Inside construct_pos_possible_golds())")
         n_remain_mv = round(self.n_remain_steps * (2/3))
+        logging.debug(f"n_remain_mv = {n_remain_mv}")
         pos_golds = self.trouver_pos_golds()
-        index_row_delete = []
-        for pos_impossible in self.pos_impossible_golds:
-            for i in range(pos_golds.shape[0]):
-                pos = pos_golds[i]
-                if np.array_equal(pos_impossible, pos):
-                    index_row_delete.append(i)
-                    break
-        self.pos_possible_golds = np.delete(pos_golds, index_row_delete, 0)
-        return self.pos_possible_golds
+        self.pos_possible_golds = []
+        for pos_gold in pos_golds:
+            if l1_dist(pos_gold, self.pos) < n_remain_mv:
+                self.pos_possible_golds.append(pos_gold)
+        self.pos_possible_golds = np.array(self.pos_possible_golds, dtype=np.int8)
+        logging.debug("(after construction)")
+        logging.debug(f"self.pos_possible_golds = {self.pos_possible_golds}")
+        #index_row_delete = []
+        #for pos_impossible in self.pos_impossible_golds:
+        #    for i in range(pos_golds.shape[0]):
+        #        pos = pos_golds[i]
+        #        if np.array_equal(pos_impossible, pos):
+        #            index_row_delete.append(i)
+        #            break
+        #self.pos_possible_golds = np.delete(pos_golds, index_row_delete, 0)
+        #return self.pos_possible_golds
 
-    #def update_pos_possible_golds(self, pos_rm_gold):
-    def update_pos_possible_golds(self):
-        # TODO
-        pass
+    def update_pos_possible_golds(self, pos_rm_gold):
+        """
+        Here I choose to use np.delete() to do the job.
+
+        Another choice would be to make a copy of self.pos_possible_golds,
+        and then empty self.pos_possible_golds, looping thru its copy,
+        and reconstruct self.pos_possible_golds so that pos_rm_gold
+        is excluded.
+        """
+        index = []
+        ## Note that if
+        ## K = np.array([
+        ##        [0, 1],
+        ##        [2, 3],
+        ##        [4, 5],
+        ##        [6, 7]])
+        ## then
+        ## In [55]: np.delete(K, -1, axis=0)
+        ## Out[55]:
+        ## array([[0, 1],
+        ##        [2, 3],
+        ##        [4, 5]])
+        ## 
+        ## In [56]: np.delete(K, 1, axis=0)
+        ## Out[56]:
+        ## array([[0, 1],
+        ##        [4, 5],
+        ##        [6, 7]])
+        ## 
+        ## In [62]: np.delete(K, [], axis=0)
+        ## Out[62]:
+        ## array([[0, 1],
+        ##        [2, 3],
+        ##        [4, 5],
+        ##        [6, 7]])
+        for i, pos in enumerate(self.pos_possible_golds):
+            if np.array_equal(pos, pos_rm_gold):
+                index = i
+                break
+        self.pos_possible_golds = np.delete(self.pos_possible_golds, index, axis=0)
+
+    def mis_a_jour(self):
+        # Cf. update_pos_possible_golds()
+        indices = []
+        for i, pos in enumerate(self.pos_possible_golds):
+            terrain = self.view[pos[1], pos[0]]
+            distance = l1_dist(pos, self.pos)
+            if terrain <= 0:
+                indices.append(i)
+            elif distance >= self.n_remain_steps:
+                indices.append(i)
+        self.pos_possible_golds = np.delete(self.pos_possible_golds, indices, axis=0)
 
     def trouver_nearest_gold(self, pos_from=None):
         if pos_from is None:
             pos_from=self.pos
-
+        self.mis_a_jour()
         distances = np.array([l1_dist(pos_gold, pos_from) for pos_gold in self.pos_possible_golds])
         #print(f"distances = {distances}")
         nearest_gold_index = np.argmin(distances)
@@ -454,7 +564,8 @@ class Goat:
         if self.stepCount == 0: # TODO: or == 1?
             self.construct_pos_possible_golds()
         else:
-            self.update_pos_possible_golds()
+            #self.update_pos_possible_golds()
+            pass
 
         terrain_here = self.view[self.y, self.x]
         standing_on_gold = terrain_here > 0
@@ -470,6 +581,7 @@ class Goat:
         ## We need to empty self.pos_target_gold once it contains no gold
         if (not self.pos_target_gold is None) and (self.view[self.pos_target_gold[1], self.pos_target_gold[0]] <= 0):
             logging.debug(f"Epuise self.pos_target_gold = {self.pos_target_gold}, amount = {self.view[self.pos_target_gold[1], self.pos_target_gold[0]]}")
+            self.update_pos_possible_golds(self.pos_target_gold)
             self.pos_target_gold = None
 
         # TODO: Whether or not at Beginning, target most valuable gold
@@ -486,16 +598,24 @@ class Goat:
         # TODO: Une fois the target gold epuise, il nous faut encore creuser de l'or qui sont autour
         logging.debug(f"self.pos_target_gold = {self.pos_target_gold}")
         if self.pos_target_gold is None:
-            if self.exist_gold_within_k_steps():
+            if self.exist_gold_within_k_steps(k=1):
                 #return self.one_step_closer_to(self.trouver_nearest_gold())
                 logging.debug(f"exist_gold_within_k_steps")
                 self.pos_target_gold = self.trouver_nearest_gold()
-                return self.towards_target()
+                logging.debug(f"trouver_nearest_gold = {self.pos_target_gold}")
+                if self.pos_target_gold is None:
+                    return rest
+                else:
+                    return self.towards_target()
             else:
                 logging.debug(f"NOT exist_gold_within_k_steps")
                 self.pos_target_gold = self.trouver_most_valuable_gold()
                 #return self.one_step_closer_to(self.pos_target_gold)
-                return self.towards_target()
+                #return self.towards_target()
+                if self.pos_target_gold is None:
+                    return rest
+                else:
+                    return self.towards_target()
         else:
             #return self.one_step_closer_to(self.pos_target_gold)
             return self.towards_target()

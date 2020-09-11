@@ -531,7 +531,8 @@ class MinerEnv:
         # Initialize reward
         reward = 0
         #s = self.get_9x21x2_state()
-        s = self.get_9x21x2_state_distinguish()
+        #s = self.get_9x21x2_state_distinguish()
+        s = self.get_view_9x21x5()[...,:2]
         pos_now = np.array([self.state.x, self.state.y])
         reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
         pos_pre = pos_now + reverse_mv
@@ -569,6 +570,9 @@ class MinerEnv:
                         else:
                             reward -= 100
                     if terrain_now < 0: # punish according to terrain_now
+                        #logging.debug("(Inside get_reward())")
+                        logging.debug(f"(Inside get_reward()) terrain_now = {terrain_now:.1f} ({self.state.x:2d},{self.state.y:2d})")
+                        #logging.debug(f"(Inside get_reward()) terrain_pre = {terrain_pre:.1f} ({x_pre:2d},{y_pre:2d})")
                         reward += terrain_now
                         if terrain_now == -100: # i.e. fatal swamp
                             reward -= 500
@@ -586,7 +590,9 @@ class MinerEnv:
                 #raise e
             finally:
                 if self.state.status == constants02.agent_state_str2id["PLAYing"]:
-                    reward += 1
+                    #reward += 1
+                    ## Why no reward? Ans: This turned out encouraging agent to "rest"
+                    pass
                 elif self.state.status == constants02.agent_state_str2id["no_more_ENERGY"]:
                     reward -= 300
                 #elif self.state.status == constants02.agent_state_str2id["no_more_STEP"]:
