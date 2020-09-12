@@ -70,19 +70,14 @@ Maps = [constants02.maps[i] for i in range(1, 6)]
 env = MinerEnv() # Creating a communication environment between the DQN model and the game environment
 env.start() # Connect to the game
 
-
-
-
-
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
-
 
 tf.random.set_seed(42)
 np.random.seed(42)
 
 #input_shape = [constants02.height, constants02.width, 1+4]
 input_shape = [constants02.height, constants02.width, 1+1]
-n_outputs = 6
+n_actions = 4
 
 model = keras.models.Sequential([
     Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
@@ -95,7 +90,7 @@ model = keras.models.Sequential([
     Dense(128, activation="elu"),
     Dense(64, activation="elu"),
     Dense(32, activation="elu"),
-    Dense(n_outputs)
+    Dense(n_actions)
 ])
 #h5 = "models/30_11_dDQN_light_tweak14/avg-1785.00-episode-11155-30_11_dDQN_light_tweak14-gold-1800-step-100-20200827-0903.h5"
 #model = keras.models.load_model(h5)
@@ -117,7 +112,8 @@ def sample_experiences(batch_size):
     return states, actions, rewards, next_states, dones
 
 
-def epsilon_greedy_policy(state, epsilon=0, n_actions=6):
+#def epsilon_greedy_policy(state, epsilon=0, n_actions=6):
+def epsilon_greedy_policy(state, epsilon=0, n_actions=n_actions):
     if np.random.rand() < epsilon:
         return np.random.randint(n_actions)
     else:
@@ -134,11 +130,12 @@ def play_one_step(env, state, epsilon):
     env.step(str(action))
     #next_state = env.get_9x21x2_state()
     next_state = env.get_view_9x21x5()[...,:2]
-    reward = env.get_reward_6act_21()
+    #reward = env.get_reward_6act_21()
+    reward = env.get_reward_4act_00()
     done = env.check_terminate()
     replay_memory.append((state, action, reward, next_state, done))
     try:
-        logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), terrain={next_state[...,0][env.state.y, env.state.x]:.1f}, lastAction={constants02.action_id2str[action]}, energy={env.state.energy}, score={env.state.score}, reward={reward:.1f}")
+        logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), terrain={next_state[...,0][env.state.y, env.state.x]:.1f}, lastAction={constants02.action_id2str[action]}, energy={env.state.energy}, energy_pre={env.state.energy_pre}, score={env.state.score}, reward={reward:.1f}")
     except IndexError:
         logging.debug(f"pos=({env.state.x:2d},{env.state.y:2d}), lastAction={constants02.action_id2str[action]}, energy={env.state.energy}, score={env.state.score}, reward={reward:.1f}")
     #next_state, reward, done, info = env.step(action)
@@ -204,6 +201,7 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         env.reset()
         #obs = env.get_9x21x2_state()
         obs = env.get_view_9x21x5()[...,:2]
+        n_mines_initially = (obs[...,0] > 0).sum()
         delimiter = "==================================================="
         logging.debug(f"\n{delimiter}\nmapID {mapID}, start (x,y) = ({posID_x}, {posID_y}) on terrain {obs[...,0][posID_y, posID_x]} \n{delimiter}")
         undiscounted_return = 0
@@ -214,7 +212,8 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             undiscounted_return += reward
             if done:
                 break
-        score = env.state.score
+        #score = env.state.score
+        score = env.n_gold_4act_agent
         scores.append(score)
         scores_k_most_recent.append(score)
         #score_avg = np.mean(scores_k_most_recent)
@@ -227,12 +226,12 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             best_score_avg = min(1800, best_score_avg + 50)
             #best_score = score
             #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
-            model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
+            model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-visitRatio-{env.n_mines_visited/n_mines_initially:.2f}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        #message = "(Episode {: 5d}/{})   Gold {: 4d}  avg {: 8.1f}  undisc_return {: 6d}   step {: 3d}   eps: {:.2f}  ({})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, constants02.agent_state_id2str[env.state.status])
-        message = "(Episode {:6d}/{})  Gold {:4d}  avg {:5.0f}  undisc_return {:8.0f}   step {:3d}   eps: {:.2f}  (map {}: {})\n".format(episode+1, n_episodes, env.state.score, score_avg, undiscounted_return, step + 1, epsilon, mapID, constants02.agent_state_id2str[env.state.status])
+        message = f"(Episode {episode+1:6d}/{n_episodes})  Gold {env.n_gold_4act_agent:4d}  avg {score_avg:5.0f}  visited {env.n_mines_visited:2d}/{n_mines_initially}  undisc_return {undiscounted_return:8.0f}   step {step + 1:3d}   eps: {epsilon:.2f}  (map {mapID}: {constants02.agent_state_id2str[env.state.status]})\n"
 
         print(message, end='')
+        logging.debug(message)
         log.write(message)
     
         #if episode > 500:
