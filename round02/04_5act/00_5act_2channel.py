@@ -77,7 +77,7 @@ np.random.seed(42)
 
 #input_shape = [constants02.height, constants02.width, 1+4]
 input_shape = [constants02.height, constants02.width, 1+1]
-n_actions = 4
+n_actions = 5
 
 model = keras.models.Sequential([
     Conv2D(4, 3, activation="relu", padding="same", input_shape=input_shape),
@@ -131,7 +131,7 @@ def play_one_step(env, state, epsilon):
     #next_state = env.get_9x21x2_state()
     next_state = env.get_view_9x21x5()[...,:2]
     #reward = env.get_reward_6act_21()
-    reward = env.get_reward_4act_2channel()
+    reward = env.get_reward_5act_2channel()
     done = env.check_terminate()
     replay_memory.append((state, action, reward, next_state, done))
     try:
@@ -191,7 +191,7 @@ scores_avg = []
 best_score = 0
 k = 10
 scores_k_most_recent = deque([0]*k, maxlen=k)
-best_score_avg = 1400
+best_score_avg = 3000
 
 with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
     for episode in range(n_episodes):
@@ -216,7 +216,7 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
             if done:
                 break
         #score = env.state.score
-        score = env.n_gold_4act_agent
+        score = env.n_gold_5act_agent
         scores.append(score)
         scores_k_most_recent.append(score)
         #score_avg = np.mean(scores_k_most_recent)
@@ -226,12 +226,12 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         if score_avg > best_score_avg:
             #best_weights = model.get_weights()
             #best_score_avg = score_avg 
-            best_score_avg = min(1800, best_score_avg + 50)
+            best_score_avg = min(5000, best_score_avg + 50)
             #best_score = score
             #model.save(os.path.join(save_path, f"episode-{episode+1}-gold-{env.state.score}-avg-{score_avg:4.2f}-step-{step+1}-{now_str}.h5"))
             model.save(os.path.join(save_path, f"avg-{score_avg:07.2f}-episode-{episode+1}-{__file__.split('.')[0]}-visitRatio-{env.n_mines_visited/n_mines_initially:.2f}-gold-{env.state.score}-step-{step+1}-{now_str}.h5"))
     
-        message = f"(Episode {episode+1:6d}/{n_episodes})  Gold {env.n_gold_4act_agent:4d}  avg {score_avg:5.0f}  visited {env.n_mines_visited:2d}/{n_mines_initially}  undisc_return {undiscounted_return:8.0f}   step {step + 1:3d}   eps: {epsilon:.2f}  (map {mapID}: {constants02.agent_state_id2str[env.state.status]})\n"
+        message = f"(Episode {episode+1:6d}/{n_episodes})  Gold {env.n_gold_5act_agent:4d}  avg {score_avg:5.0f}  visited {env.n_mines_visited:2d}/{n_mines_initially}  undisc_return {undiscounted_return:8.0f}   step {step + 1:3d}   eps: {epsilon:.2f}  (map {mapID}: {constants02.agent_state_id2str[env.state.status]})\n"
 
         print(message, end='')
         logging.debug(message)
