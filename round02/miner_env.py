@@ -19,7 +19,7 @@ class MinerEnv:
         self.score_pre = self.state.score
         self.n_mines_visited = 0
         self.view_9x21x5 = None
-        self.view_9x21x5_prev = None  # previous frame
+        self.view_9x21x5_pre = None  # previous frame
         #self.channel2 = None
         #self.channel2_prev = None
         self.start_tracking_swamp = False
@@ -48,7 +48,7 @@ class MinerEnv:
             self.state.init_state(message) #init state
             self.n_mines_visited = 0
             self.view_9x21x5 = None
-            self.view_9x21x5_prev = None  # previous frame
+            self.view_9x21x5_pre = None  # previous frame
             #self.channel2 = None
             #self.channel2_prev = None
             self.start_tracking_swamp = False
@@ -84,8 +84,8 @@ class MinerEnv:
         """
         #print(f"self.view_9x21x5 is None: {self.view_9x21x5 is None}")
         if not self.view_9x21x5 is None:
-            #print(f"view_9x21x5 copied to view_9x21x5_prev")
-            self.view_9x21x5_prev = self.view_9x21x5.copy()
+            #print(f"view_9x21x5 copied to view_9x21x5_pre")
+            self.view_9x21x5_pre = self.view_9x21x5.copy()
         ## channel0 will contain the ids of each terrain
         ## channel1 will contain the value of each terrain, notably
         ##          it can track swamp's value
@@ -158,18 +158,23 @@ class MinerEnv:
             #self.view_9x21x5 = np.stack((channel1, channel2, channel3, channel4, channel5), axis=-1)
             self.view_9x21x5 = np.stack((channel1, channel2, channels_other_players[..., 0], channels_other_players[..., 1], channels_other_players[..., 2]), axis=-1)
             #self.view_9x21x5 = np.stack((channel1, channel2), axis=-1)
-            #print(f"(1st entering) view =\n{self.view_9x21x5[...,0].astype(np.int16)}\nview_pre =\n{self.view_9x21x5_prev}")
+            #print(f"(1st entering) view =\n{self.view_9x21x5[...,0].astype(np.int16)}\nview_pre =\n{self.view_9x21x5_pre}")
+            #logging.debug(f"self.view_9x21x5[...,0] =\n{self.view_9x21x5[...,0]}")
+            if self.view_9x21x5_pre is not None:
+                #logging.debug(f"self.view_9x21x5_pre[...,0] =\n{self.view_9x21x5_pre[...,0]}")
+                #logging.debug(f"np.array_equal(self.view_9x21x5_pre[...,0], self.view_9x21x5[...,0]) =\n{np.array_equal(self.view_9x21x5_pre[...,0], self.view_9x21x5[...,0])}")
+                pass
             return self.view_9x21x5
         else:
             #print(f"self.start_tracking_swamp = {self.start_tracking_swamp}")
-            #print(f"(2nd entering) view_pre =\n{self.view_9x21x5_prev[...,0].astype(np.int16)}")
+            #print(f"(2nd entering) view_pre =\n{self.view_9x21x5_pre[...,0].astype(np.int16)}")
             # Update self.view_9x21x5
             self.view_9x21x5[...,1] = channel2
             for i in range(2, 5):
                 self.view_9x21x5[...,i] = channels_other_players[...,i-2]
 
-            #channel1 = self.view_9x21x5_prev[..., 1]
-            channel1 = self.view_9x21x5_prev[..., 0]
+            #channel1 = self.view_9x21x5_pre[..., 1]
+            channel1 = self.view_9x21x5_pre[..., 0].copy()
             #print(f"channel1 =\n{channel1.astype(np.int16)}")
             ## land is permanent; but gold may become land
             channel1[channel0 == terrain_ids["land"]] = punishments["land"]
@@ -189,7 +194,7 @@ class MinerEnv:
             #        if is_swamp:
             #            channel1[y_now, x_now] = dict_bog[channel1[y_now, x_now]]
             for c in range(1, 5):
-                moved = not np.array_equal(self.view_9x21x5[...,c] - self.view_9x21x5_prev[...,c], np.zeros_like(self.view_9x21x5[...,c]))
+                moved = not np.array_equal(self.view_9x21x5[...,c] - self.view_9x21x5_pre[...,c], np.zeros_like(self.view_9x21x5[...,c]))
                 if moved:
                     row, col = np.unravel_index(np.argmax(self.view_9x21x5[...,c], axis=None), self.view_9x21x5[...,c].shape)
                     is_swamp = channel0[row, col] == terrain_ids["swamp"]
@@ -213,6 +218,11 @@ class MinerEnv:
             #self.view_9x21x5 = np.stack((channel1, channel2), axis=-1)
             self.view_9x21x5 = np.stack((channel1, channel2, channels_other_players[..., 0], channels_other_players[..., 1], channels_other_players[..., 2]), axis=-1)
             #print(f"view =\n{self.view_9x21x5[...,0].astype(np.int16)}")
+            #logging.debug(f"self.view_9x21x5[...,0] =\n{self.view_9x21x5[...,0]}")
+            if self.view_9x21x5_pre is not None:
+                #logging.debug(f"self.view_9x21x5_pre[...,0] =\n{self.view_9x21x5_pre[...,0]}")
+                #logging.debug(f"np.array_equal(self.view_9x21x5_pre[...,0], self.view_9x21x5[...,0]) =\n{np.array_equal(self.view_9x21x5_pre[...,0], self.view_9x21x5[...,0])}")
+                pass
             return self.view_9x21x5
 
     def get_198_state(self):
@@ -534,12 +544,16 @@ class MinerEnv:
         reward = 0
         #s = self.get_9x21x2_state()
         #s = self.get_9x21x2_state_distinguish()
-        s = self.get_view_9x21x5()[...,:2]
+        #s = self.get_view_9x21x5()[...,:2]
+        s = self.view_9x21x5[...,:2]
+        s_pre = self.view_9x21x5_pre[...,:2]
         pos_now = np.array([self.state.x, self.state.y])
         reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
         pos_pre = pos_now + reverse_mv
         x_pre, y_pre = pos_pre
-        terrain_pre = s[y_pre, x_pre, 0]
+        ## if we use the current observation to get terrain_pre, we risk to get wrong because the observation might have been changed, and thus different from the previous step
+        #terrain_pre = s[y_pre, x_pre, 0]
+        terrain_pre = s_pre[y_pre, x_pre, 0]
         if self.state.status == constants02.agent_state_str2id["out_of_MAP"]:
             #if self.state.stepCount < 50:
             #    reward += -5*(50 - self.state.stepCount)
@@ -557,9 +571,10 @@ class MinerEnv:
 
                 # Punish `dig on obstacle`
                 if self.state.lastAction == constants02.dig:
-                    if terrain_now < 0:
+                    #if terrain_now < 0:
+                    if terrain_pre < 0:
                         reward -= 100
-                    elif terrain_now > 0: # TODO: This should be self.terrain_pre, because the amount of gold is altered by lastActions of agent and bots
+                    elif terrain_pre > 0:
                         score_action = self.state.score - self.score_pre
                         reward += score_action
                         self.score_pre = self.state.score
@@ -570,7 +585,7 @@ class MinerEnv:
                         #if self.state.energy_pre > constants02.punishments["gold"]:
                         if self.state.status == constants02.agent_state_str2id["PLAYing"]:
                             ## if upon entering the agent is still alive, we reward it for correctly judging that
-                            reward += 50
+                            reward += 100
                         else:
                             reward -= 400
                     if terrain_now < 0: # punish according to terrain_now
@@ -585,9 +600,11 @@ class MinerEnv:
                         reward -= 200
                     if self.state.energy_pre <= 5:
                         reward += 20
-                    if terrain_now > 0: # TODO should be self.terrain_pre also
-                        if self.state.energy_pre > 15:
-                            reward -= 200
+                    if terrain_pre > 0:  ## i.e. rest on gold while could have digged \implies punish
+                        if self.state.energy_pre > 5:
+                            reward -= 70
+                        if self.state.energy_pre > 10:
+                            reward -= 150
             except Exception as e:
                 print(f"{e}")
                 print(f"step = {self.state.stepCount}")
@@ -615,11 +632,14 @@ class MinerEnv:
         # initialize reward
         reward = 0
         s = self.get_view_9x21x5()[...,:2]
+        s_pre = self.view_9x21x5_pre[...,:2]
         pos_now = np.array([self.state.x, self.state.y])
         reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
         pos_pre = pos_now + reverse_mv
         x_pre, y_pre = pos_pre
-        terrain_pre = s[y_pre, x_pre, 0]
+        ## if we use the current observation to get terrain_pre, we risk to get wrong because the observation might have been changed, and thus different from the previous step
+        #terrain_pre = s[y_pre, x_pre, 0]
+        terrain_pre = s_pre[y_pre, x_pre, 0]
         if self.state.status == constants02.agent_state_str2id["out_of_MAP"]:
             #if self.state.stepCount < 50:
             #    reward += -5*(50 - self.state.stepCount)
@@ -697,12 +717,18 @@ class MinerEnv:
     def get_reward_5act_2channel(self):
         # initialize reward
         reward = 0
-        s = self.get_view_9x21x5()[...,:2]
+        #s = self.get_view_9x21x5()[...,:2]
+        s = self.view_9x21x5[...,:2]
+        s_pre = self.view_9x21x5_pre[...,:2]
+        #logging.debug(f"np.array_equal(s[...,0], s_pre[...,0]) =\n{np.array_equal(s[...,0], s_pre[...,0])}")
+        #logging.debug(f"s_pre[...,0] =\n{s_pre[...,0]}")
+        #logging.debug(f"s[...,0] =\n{s[...,0]}")
         pos_now = np.array([self.state.x, self.state.y])
         reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
         pos_pre = pos_now + reverse_mv
         x_pre, y_pre = pos_pre
-        terrain_pre = s[y_pre, x_pre, 0]
+        #terrain_pre = s[y_pre, x_pre, 0]
+        terrain_pre = s_pre[y_pre, x_pre, 0]
         if self.state.status == constants02.agent_state_str2id["out_of_MAP"]:
             #if self.state.stepCount < 50:
             #    reward += -5*(50 - self.state.stepCount)
@@ -754,9 +780,11 @@ class MinerEnv:
                         reward -= 200
                     if self.state.energy_pre <= 5:
                         reward += 100
-                    if terrain_now > 0: # TODO should be self.terrain_pre also
-                        if self.state.energy_pre > 15:
-                            reward -= 200
+                    if terrain_pre > 0:
+                        if self.state.energy_pre > 5:
+                            reward -= 70
+                        if self.state.energy_pre > 10:
+                            reward -= 150
             except Exception as e:
                 print(f"{e}")
                 print(f"step = {self.state.stepCount}")
