@@ -5,10 +5,6 @@
 #   as opposed to
 #   n_epsilon_decay = int(n_episodes*.805)
 #   Takes around 300_000 to get from epsilon=1 to epsilon=0.01
-# 02. longer
-#   n_episodes_buf_fill = 10_000
-#   as opposed to
-#   n_episodes_buf_fill = 5_000
 ########################################
 
 
@@ -57,7 +53,7 @@ n_epsilon_decay = int(n_episodes*.6)
 #n_epsilon_decay = int(n_episodes*.805)
 #n_epsilon_decay = 10**6 / 0.99
 #n_epsilon_decay = int(n_episodes // 50)
-n_episodes_buf_fill = 10_000
+n_episodes_buf_fill = 5_000
 batch_size = 32
 discount_rate = 0.95
 #lr_optimizer = 2.5e-4

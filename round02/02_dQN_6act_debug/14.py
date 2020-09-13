@@ -1,11 +1,15 @@
 ########################################
 # Changes compared to 30_05_CNN_revived_dDQN_light.py
 # 01. 
-#   n_epsilon_decay = int(n_episodes*.6)
+#   n_epsilon_decay = int(n_episodes // 50)
 #   as opposed to
 #   n_epsilon_decay = int(n_episodes*.805)
-#   Takes around 300_000 to get from epsilon=1 to epsilon=0.01
-# 02. longer
+#   Takes around 9_900 to get from epsilon=1 to epsilon=0.01
+# 02.
+#   lr_optimizer = 2.5e-4
+#   as opposed to
+#   lr_optimizer = 7.3e-4
+# 03. longer
 #   n_episodes_buf_fill = 10_000
 #   as opposed to
 #   n_episodes_buf_fill = 5_000
@@ -53,15 +57,15 @@ import non_RL_agent06
 from miner_env import MinerEnv
 
 n_episodes = 500_000
-n_epsilon_decay = int(n_episodes*.6)
+#n_epsilon_decay = int(n_episodes*.6)
 #n_epsilon_decay = int(n_episodes*.805)
 #n_epsilon_decay = 10**6 / 0.99
-#n_epsilon_decay = int(n_episodes // 50)
+n_epsilon_decay = int(n_episodes // 50)
 n_episodes_buf_fill = 10_000
 batch_size = 32
 discount_rate = 0.95
-#lr_optimizer = 2.5e-4
-lr_optimizer = 7.3e-4
+lr_optimizer = 2.5e-4
+#lr_optimizer = 7.3e-4
 #loss_fn = keras.losses.mean_squared_error
 loss_fn = keras.losses.Huber()
 max_replay_len = 50_000
