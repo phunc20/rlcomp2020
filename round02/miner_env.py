@@ -546,7 +546,14 @@ class MinerEnv:
         #s = self.get_9x21x2_state_distinguish()
         #s = self.get_view_9x21x5()[...,:2]
         s = self.view_9x21x5[...,:2]
+
         s_pre = self.view_9x21x5_pre[...,:2]
+        ## TODO: bug from tf-agents saying that view_9x21x5_pre is None sometimes
+        #if self.view_9x21x5_pre is not None:
+        #    s_pre = self.view_9x21x5_pre[...,:2]
+        #else:
+        #    s_pre = s
+
         pos_now = np.array([self.state.x, self.state.y])
         reverse_mv = constants02.action_id2ndarray[constants02.reverse_action_id[self.state.lastAction]]
         pos_pre = pos_now + reverse_mv

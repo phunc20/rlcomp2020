@@ -40,11 +40,13 @@ class TFAgentsMiner(pyenv.PyEnvironment):
         posID_y = np.random.randint(height)
         #request = ("map" + str(mapID) + "," + str(posID_x) + "," + str(posID_y) + ",50,100")
         request = "map{},{},{},{},{}".format(mapID, posID_x, posID_y, constants02.max_energy, constants02.n_allowed_steps)
+        print(f"{request}")
         self.env.send_map_info(request)
         self.env.reset()
         #observation = self.env.get_9x21x2_state()
         #observation = self.env.get_9x21x2_tf_agent_state()
-        observation = self.env.get_9x21x2_state_distinguish()
+        #observation = self.env.get_9x21x2_state_distinguish()
+        observation = self.env.get_view_9x21x5()[...,:2]
 
         return time_step.restart(observation)
 
@@ -52,19 +54,34 @@ class TFAgentsMiner(pyenv.PyEnvironment):
         socket = self.env.socket
 
         # print(f'Map size:{self.socket.user.max_x, self.env.state.mapInfo.max_y}')
-        #print(f"Self   - Pos ({socket.user.posx}, {socket.user.posy}) - Energy {socket.user.energy} - Status {socket.user.status}")
-        print(f"Self   - Pos ({socket.user.posx}, {socket.user.posy}) - Energy {socket.user.energy}  ({agent_state_id2str[socket.user.status]})")
+
+        print(f"(step {self.env.state.stepCount})")
+        #if self.env.state.stepCount == 0:
+        #    print(f"\n(step {self.env.state.stepCount})")
+        #else:
+        #    print(f"(step {self.env.state.stepCount})")
+
+        print(f"(Agent)  pos ({socket.user.posx:2d}, {socket.user.posy:2d})  energy {socket.user.energy:2d}  ({agent_state_id2str[socket.user.status]:>6})")
         for bot in socket.bots:
-            print(f"Enemy  - Pos ({bot.info.posx}, {bot.info.posy}) - Energy {bot.info.energy}  ({agent_state_id2str[bot.info.status]})")
+            print(f"(Bot)    pos ({bot.info.posx:2d}, {bot.info.posy:2d})  energy {bot.info.energy:2d}  ({agent_state_id2str[bot.info.status]:>6})")
+
+
+    def _end_episode_info(self):
+        print(f"gold {self.env.state.score:4d}")
+
+
                 
     def _step(self, action):
         if self.debug:
-            self._log_info()
+            #self._log_info()
+            pass
             
         self.env.step(str(action))
         #observation = self.env.get_state()
         #observation = self.env.get_9x21x2_tf_agent_state()
-        observation = self.env.get_9x21x2_state_distinguish()
+        #observation = self.env.get_9x21x2_state_distinguish()
+        observation = self.env.get_view_9x21x5()[...,:2]
+
         #reward = self.env.get_reward()
         #reward = self.env.get_deprecated_reward_01()
         #reward = self.env.get_reward_6act_20()
@@ -73,6 +90,8 @@ class TFAgentsMiner(pyenv.PyEnvironment):
         if not self.env.check_terminate():
             return time_step.transition(observation, reward)
         else:
+            if self.debug:
+                self._end_episode_info()
             self.reset()
             return time_step.termination(observation, reward)
 
