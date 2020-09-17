@@ -1,7 +1,8 @@
 from miner_state import State
 import numpy as np
-from revived_non_RL_01 import Goat
+from pet import Goat
 import constants02
+import non_RL_agent
 
 
 class PlayerInfo:
@@ -60,6 +61,17 @@ class Bot3:
         state = np.array(state)
         return state
 
+    def next_action(self):
+        """
+        return int(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
+        """
+        s = self.get_198_state()
+        int_action = int(non_RL_agent.greedy_policy(s, how_gold=non_RL_agent.find_worthiest_gold))
+        #print(f"(bot1) pos ({self.info.posx:2d},{self.info.posy:2d}) energy {self.info.energy:2d}")
+        #print(f"       {constants02.action_id2str[int_action]}")
+        return int_action
+
+
     #def next_action(self):
     #    #s = self.get_198_state()
     #    view, energy, stepCount, pos_players = env.get_non_RL_state_02()
@@ -69,25 +81,25 @@ class Bot3:
     #    #print(f"       {constants02.action_id2str[int_action]}")
     #    return int_action
 
-    def next_action(self):
-        if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
-            if self.info.energy >= 6:
-                return self.ACTION_CRAFT
-            else:
-                return self.ACTION_FREE
-        if self.info.energy < 5:
-            return self.ACTION_FREE
-        else:
-            action = self.ACTION_GO_LEFT
-            if self.info.posx % 2 == 0:
-                if self.info.posy < self.state.mapInfo.max_y:
-                    action = self.ACTION_GO_DOWN
-            else:
-                if self.info.posy > 0:
-                    action = self.ACTION_GO_UP
-                else:
-                    action = self.ACTION_GO_RIGHT
-            return action
+    #def next_action(self):
+    #    if self.state.mapInfo.gold_amount(self.info.posx, self.info.posy) > 0:
+    #        if self.info.energy >= 6:
+    #            return self.ACTION_CRAFT
+    #        else:
+    #            return self.ACTION_FREE
+    #    if self.info.energy < 5:
+    #        return self.ACTION_FREE
+    #    else:
+    #        action = self.ACTION_GO_LEFT
+    #        if self.info.posx % 2 == 0:
+    #            if self.info.posy < self.state.mapInfo.max_y:
+    #                action = self.ACTION_GO_DOWN
+    #        else:
+    #            if self.info.posy > 0:
+    #                action = self.ACTION_GO_UP
+    #            else:
+    #                action = self.ACTION_GO_RIGHT
+    #        return action
 
     def new_game(self, data):
         try:

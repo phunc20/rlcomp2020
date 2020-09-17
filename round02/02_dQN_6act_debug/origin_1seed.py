@@ -170,8 +170,8 @@ def training_step(batch_size):
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
 
-np.random.seed(42)
-tf.random.set_seed(42)
+#np.random.seed(42)
+#tf.random.set_seed(42)
 
 
 from constants02 import n_allowed_steps

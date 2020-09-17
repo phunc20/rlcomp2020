@@ -7,7 +7,8 @@
 #   Takes around 300_000 to get from epsilon=1 to epsilon=0.01
 ########################################
 
-
+import cv2
+import matplotlib.pyplot as plt
 import sys
 import numpy as np
 #import pandas as pd
@@ -48,6 +49,7 @@ import non_RL_agent05
 import non_RL_agent06
 from miner_env import MinerEnv
 
+seed = 30420
 n_episodes = 500_000
 #n_epsilon_decay = int(n_episodes*.6)
 n_epsilon_decay = int(n_episodes*.805)
@@ -74,11 +76,11 @@ env.start() # Connect to the game
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 
 
-tf.random.set_seed(42)
-np.random.seed(42)
+tf.random.set_seed(seed)
+np.random.seed(seed)
 
-#input_shape = [constants02.height, constants02.width, 1+4]
-input_shape = [constants02.height, constants02.width, 1+1]
+input_shape = [constants02.height, constants02.width, 1+4]
+#input_shape = [constants02.height, constants02.width, 1+1]
 n_outputs = 6
 
 model = keras.models.Sequential([
@@ -130,7 +132,7 @@ def play_one_step(env, state, epsilon):
     #next_state, reward, done, info = env.step(action)
     env.step(str(action))
     #next_state = env.get_9x21x2_state()
-    next_state = env.get_view_9x21x5()[...,:2]
+    next_state = env.get_view_9x21x5()
     reward = env.get_reward_6act_21()
     done = env.check_terminate()
     replay_memory.append((state, action, reward, next_state, done))
@@ -170,8 +172,8 @@ def training_step(batch_size):
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
 
-np.random.seed(42)
-tf.random.set_seed(42)
+#np.random.seed(42)
+#tf.random.set_seed(42)
 
 
 from constants02 import n_allowed_steps
@@ -200,13 +202,15 @@ with open(os.path.join(save_path, f"log-{now_str}.txt"), 'w') as log:
         env.send_map_info(request)
         env.reset()
         #obs = env.get_9x21x2_state()
-        obs = env.get_view_9x21x5()[...,:2]
+        obs = env.get_view_9x21x5()
         delimiter = "==================================================="
         logging.debug(f"\n{delimiter}\nmapID {mapID}, start (x,y) = ({posID_x}, {posID_y}) on terrain {obs[...,0][posID_y, posID_x]} \n{delimiter}")
         undiscounted_return = 0
         for step in range(n_allowed_steps):
             logging.debug(f"(step {step:3d})")
             logging.debug(f"obs[...,0] =\n{obs[...,0]}")
+            #plt.imsave(f"corbeille/map-{mapID}-step-{step:03d}.png", obs[...,0], cmap="gray")
+            #plt.imsave(f"corbeille/map-{mapID}-step-{step:03d}.png", cv2.resize(obs[...,0], (210, 90)), cmap="gray")
             epsilon = max(1 - episode / n_epsilon_decay, 0.01)
             obs, reward, done = play_one_step(env, obs, epsilon)
             undiscounted_return += reward

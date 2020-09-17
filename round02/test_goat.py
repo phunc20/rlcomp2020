@@ -15,7 +15,7 @@ import constants02
 #import non_RL_agent04
 #import non_RL_agent05
 #import non_RL_agent06
-import revived_non_RL_01
+import pet
 from miner_env import MinerEnv
 
 #maps = [np.array(m) for m in Maps]
@@ -23,7 +23,7 @@ maps = [np.array(constants02.maps[i]) for i in range(1, 6)]
 env = MinerEnv()
 env.start()
 
-#goat = revived_non_RL_01.Goat()
+#goat = pet.Goat()
 
 def mapID_gen():
     #shuffled = np.arange(0,5)
@@ -39,7 +39,7 @@ bot3_final_score = 0
 
 for mapID in mapID_gen():
     try:
-        goat = revived_non_RL_01.Goat()
+        goat = pet.Goat()
         #mapID = np.random.randint(0, 5)
         posID_x = np.random.randint(constants02.width)
         posID_y = np.random.randint(constants02.height)

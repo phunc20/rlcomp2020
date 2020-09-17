@@ -14,7 +14,7 @@ import constants02
 #import non_RL_agent04
 #import non_RL_agent05
 #import non_RL_agent06
-import revived_non_RL_01
+import pet
 from miner_env import MinerEnv
 
 #maps = [np.array(m) for m in Maps]
@@ -22,7 +22,7 @@ maps = [np.array(constants02.maps[i]) for i in range(1, 6)]
 env = MinerEnv()
 env.start()
 
-goat = revived_non_RL_01.Goat()
+goat = pet.Goat()
 
 def mapID_gen():
     #shuffled = np.arange(0,5)

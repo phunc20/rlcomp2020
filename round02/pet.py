@@ -34,38 +34,52 @@ class Goat:
         self.n_remain_steps = None
         self.pos_other_players = None
 
-    def valeur(self, pos_gold, n_approx_steps, k=3):
+    #def valeur(self, pos_gold, n_approx_steps, k=3):
+    def valeur(self, pos_gold, pos_from, k=3):
+        """
+        Idea:
+        1) Loop thru self.pos_possible_golds, finding the most dense gold region
+        2) If D denotes the distance to that region, then the value of that region should be inverse proportional to D
+        3) (TODO) An isolated high mountain is less valuable than a twin 70%-high mountain, you get the idea
+        """
         #propre_valeur = 
         #extra_valeur = 
         # TODO: Take swamp into consideration
-        logging.debug(f"(Inside valeur())")
+        logging.debug(f"(Dans valeur())")
         valeurs = []
         poids = []
-        logging.debug(f"self.pos_possible_golds = {self.pos_possible_golds}")
+        #logging.debug(f"self.pos_possible_golds =\n{self.pos_possible_golds}")
         for pos_vang in self.pos_possible_golds:
             distance = l1_dist(pos_vang, pos_gold)
             if distance > k:
                 continue
             else:
-                poids.append(2**(-k))
+                #poids.append(2**(-k))
+                poids.append(2**(-distance))
                 valeurs.append(self.view[pos_vang[1], pos_vang[0]])
         valeurs = np.array(valeurs)
         poids = np.array(poids)
+
         logging.debug(f"pos_gold = {pos_gold}")
-        logging.debug(f"valeurs = {valeurs}")
-        logging.debug(f"poids = {poids}")
+        #logging.debug(f"valeurs = {valeurs}")
+        #logging.debug(f"poids = {poids}")
         logging.debug(f"(valeurs*poids).sum() = {(valeurs*poids).sum()}")
-        logging.debug(f"n_approx_steps*15 = {n_approx_steps*15}")
-        total = max(0, (valeurs*poids).sum() - n_approx_steps*15)
+        price_step = 50
+        logging.debug(f"price_step*l1_dist(pos_from, pos_gold) = {price_step*l1_dist(pos_from, pos_gold)}")
+        #logging.debug(f"n_approx_steps*15 = {n_approx_steps*15}")
+
+        #total = max(0, (valeurs*poids).sum())
+        total = max(0, (valeurs*poids).sum() - price_step*l1_dist(pos_from, pos_gold))
+        #total = max(0, (valeurs*poids).sum() - n_approx_steps*15)
         #total = max(0, (valeurs*poids).sum() / poids.sum() - n_approx_steps*15)
-        if total == 0:
-            logging.debug(f"{pos_gold} evaluated to 0")
+        #if total == 0:
+        #    logging.debug(f"{pos_gold} evaluated to 0")
         n_share = 1
         for pos_opponent in self.pos_other_players:
             if l1_dist(pos_opponent, pos_gold) <= k:
                 n_share += 1
         total = total / n_share
-        logging.debug(f"totally: {total}")
+        logging.debug(f"{pos_gold} evaluated to {total}")
         return total
 
     #def evaluate_00(pos_gold, n_remain_steps):
@@ -137,7 +151,8 @@ class Goat:
                 #    self.pos_possible_golds.append(pos_gold)
                 distance = l1_dist(pos_gold, pos_from)
                 n_steps_left = self.n_remain_steps - distance
-                value = self.valeur(pos_gold, n_steps_left)
+                #value = self.valeur(pos_gold, n_steps_left)
+                value = self.valeur(pos_gold, pos_from)
                 values.append(value)
             values = np.array(values)
             #self.pos_possible_golds = np.array(self.pos_possible_golds, dtype=np.int8)
@@ -248,7 +263,7 @@ class Goat:
                 self.pos_possible_golds.append(pos_gold)
         self.pos_possible_golds = np.array(self.pos_possible_golds, dtype=np.int8)
         logging.debug("(after construction)")
-        logging.debug(f"self.pos_possible_golds = {self.pos_possible_golds}")
+        logging.debug(f"self.pos_possible_golds =\n{self.pos_possible_golds}")
         #index_row_delete = []
         #for pos_impossible in self.pos_impossible_golds:
         #    for i in range(pos_golds.shape[0]):
@@ -334,7 +349,7 @@ class Goat:
     def moins_severe_index(self, terrains):
         terrains = np.array(terrains)
         logging.debug(f"terrains.max() = {terrains.max()}")
-        logging.debug(f"- swamp_energy[-1] = {- swamp_energy[-1]}")
+        #logging.debug(f"- swamp_energy[-1] = {- swamp_energy[-1]}")
         if terrains.max() <= - max_energy: # i.e. next terrain is fatal for sure 
             index = None
             return index
@@ -410,7 +425,7 @@ class Goat:
             return rest
         else:
             #logging.debug(f"Take {constants02.action_id2str[chosen_mv]}")
-            logging.debug(f"Take {action_id2str[chosen_mv]}")
+            logging.debug(f"Take {action_id2str[chosen_mv].upper()}")
             return chosen_mv
 
     def bo_tay(self, needed_displacements, view, pos_agent, energy):
@@ -442,7 +457,7 @@ class Goat:
             return rest
         else:
             #logging.debug(f"Take {constants02.action_id2str[chosen_mv]}")
-            logging.debug(f"Take {action_id2str[chosen_mv]}")
+            logging.debug(f"Take {action_id2str[chosen_mv].upper()}")
             return chosen_mv
 
     #def policy_nearest_gold(view, energy, stepCount, pos_players):
@@ -529,7 +544,7 @@ class Goat:
         else:
             #print(f"(Final) needed_displacements = {needed_displacements}, index = {index}")
             #logging.debug(f"Take {constants02.action_id2str[needed_displacements[index]]}")
-            logging.debug(f"Take {action_id2str[needed_displacements[index]]}")
+            logging.debug(f"Take {action_id2str[needed_displacements[index]].upper()}")
             return needed_displacements[index]
 
     
@@ -543,8 +558,11 @@ class Goat:
         if pos_from is None:
             pos_from=self.pos
         exist = False
+        # TODO the next line: need or not?
+        self.mis_a_jour()
         for pos_gold in self.pos_possible_golds:
-            if l1_dist(pos_gold, pos_from) <= k:
+            D = l1_dist(pos_gold, pos_from)
+            if 0 < D <= k:
                 exist = True
         return exist
 
@@ -598,7 +616,8 @@ class Goat:
         # TODO: Une fois the target gold epuise, il nous faut encore creuser de l'or qui sont autour
         logging.debug(f"self.pos_target_gold = {self.pos_target_gold}")
         if self.pos_target_gold is None:
-            if self.exist_gold_within_k_steps(k=1):
+            #if self.exist_gold_within_k_steps(k=1):
+            if self.exist_gold_within_k_steps(k=2):
                 #return self.one_step_closer_to(self.trouver_nearest_gold())
                 logging.debug(f"exist_gold_within_k_steps")
                 self.pos_target_gold = self.trouver_nearest_gold()
